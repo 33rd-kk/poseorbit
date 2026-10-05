@@ -1,6 +1,7 @@
-# Keeps dependencies current and opens a pull request for each update.
-# Security updates (Dependabot alerts with fixes) arrive as they are
-# published; the weekly runs cover ordinary version bumps.
+# Keeps dependencies current. Security updates (Dependabot alerts with
+# fixes) arrive as they are published; the weekly runs cover ordinary bumps,
+# minor and patch grouped, each major on its own so one that breaks holds up
+# nothing else.
 version: 2
 updates:
   - package-ecosystem: pip
@@ -10,6 +11,7 @@ updates:
     groups:
       python:
         patterns: ["*"]
+        update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
     schedule:
