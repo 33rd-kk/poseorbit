@@ -141,7 +141,13 @@ def depth_in_pixels(depth_bins: np.ndarray, keypoints: np.ndarray, scores: np.nd
 
 
 class Detector:
-    """Loads its models on first use and is safe to share between threads."""
+    """Finds people. Loads its models on first use; safe to share between threads.
+
+    Args:
+        weights_dir: Where to keep the ONNX files (about 700 MB, downloaded on
+            first use); default `~/.cache/poseorbit`.
+        device: onnxruntime's device, `"cpu"` by default.
+    """
 
     def __init__(self, weights_dir: Path | None = None, device: str = "cpu"):
         self.weights_dir = weights_dir
@@ -170,7 +176,17 @@ class Detector:
         """Everyone in `image`, ordered left to right by the centre of the figure,
         so the same picture always numbers its people the same way.
 
-        Raises NoPersonError when nobody is seen well enough.
+        Args:
+            image: The picture.
+            depth: Also estimate each keypoint's depth (RTMW3D-x, about 0.3 s
+                more); see `Person.depth`.
+
+        Returns:
+            The people found, left to right.
+
+        Raises:
+            NoPersonError: Nobody is seen well enough (fewer than 8 of 17 body
+                joints).
         """
         import cv2
 
@@ -202,4 +218,5 @@ class Detector:
 
 
 def most_confident(people: list[Person]) -> int:
+    """The index of the person with the most body joints seen."""
     return max(range(len(people)), key=lambda index: people[index].visible)

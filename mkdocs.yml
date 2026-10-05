@@ -1,0 +1,76 @@
+site_name: poseorbit
+site_description: Find the people in a picture, turn their pose in 3D, frame it, and draw the skeleton your image model follows.
+site_url: https://33rd-kk.github.io/poseorbit/
+repo_url: https://github.com/33rd-kk/poseorbit
+repo_name: 33rd-kk/poseorbit
+edit_uri: edit/main/docs/
+copyright: poseorbit is Apache-2.0. Model files keep their own licences.
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle: { icon: material/weather-night, name: Dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: deep purple
+      toggle: { icon: material/weather-sunny, name: Light mode }
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Guide:
+      - Usage: guide/usage.md
+      - Skeleton styles: guide/styles.md
+      - Coordinates: guide/coordinates.md
+  - Reference:
+      - Python API: reference/python.md
+      - HTTP API: reference/http.md
+      - Command line: reference/cli.md
+  - Changelog: changelog.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: google
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_signature_annotations: true
+            separate_signature: true
+            members_order: source
+            merge_init_into_class: true
+            filters: ["!^_"]
+            heading_level: 3
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc: { permalink: true }
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.snippets:
+      base_path: [.]
+      check_paths: true
+
+exclude_docs: |
+  requirements.txt

@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 def main() -> None:
+    """The `poseorbit` command (`python -m poseorbit`)."""
     parser = argparse.ArgumentParser(prog="poseorbit")
     commands = parser.add_subparsers(dest="command", required=True)
 

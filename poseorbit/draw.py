@@ -38,7 +38,23 @@ _OPENPOSE_COLOURS = [
 
 
 def render(keypoints: np.ndarray, scores: np.ndarray, size: tuple[int, int], style: Style = "dwpose") -> Image.Image:
-    """`keypoints` (N, 133, 2) in the canvas's pixels with `scores` (N, 133), on a `size` canvas."""
+    """Skeletons on a black canvas, in the style a model was trained on.
+
+    Args:
+        keypoints: (N, 133, 2) COCO-WholeBody keypoints in the canvas's pixels.
+        scores: (N, 133) their scores; points under `KEYPOINT_THRESHOLD` are
+            not drawn.
+        size: The canvas's (width, height).
+        style: `"dwpose"` (rtmlib's COCO-WholeBody drawing: body, feet, hands
+            and face) or `"openpose"` (the 18 body points, thick limbs that
+            grow with the canvas, as xinsir's OpenPose ControlNet was trained).
+
+    Returns:
+        The skeleton as an RGB picture.
+
+    Raises:
+        ValueError: An unknown `style`.
+    """
     if style not in STYLES:
         raise ValueError(f"Unknown skeleton style {style!r}; one of {', '.join(STYLES)}")
     width, height = size

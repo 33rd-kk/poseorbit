@@ -13,12 +13,24 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import MAX_PITCH, MAX_YAW, MAX_ZOOM, MIN_ZOOM, STYLES, Detector, NoPersonError, __version__
 from .api import BadRequest, handle
 
+if TYPE_CHECKING:  # FastAPI is the optional `server` extra
+    from fastapi import FastAPI
 
-def create_app(weights_dir: Path | None = None):
+
+def create_app(weights_dir: Path | None = None) -> "FastAPI":
+    """The FastAPI app answering `/api/health` and `/api/pose`.
+
+    Args:
+        weights_dir: Passed to [Detector][poseorbit.Detector].
+
+    Returns:
+        A FastAPI application, for uvicorn or any ASGI server.
+    """
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.concurrency import run_in_threadpool
     from fastapi.responses import JSONResponse

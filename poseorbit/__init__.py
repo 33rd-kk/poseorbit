@@ -48,6 +48,19 @@ __all__ = [
 
 @dataclass
 class PoseResult:
+    """What [pose][poseorbit.pose] drew, and what it found on the way.
+
+    Attributes:
+        skeleton: The skeleton on black, at the requested size.
+        people: Everyone detected, left to right.
+        person: Who was drawn: an index into `people`, or `ALL_PEOPLE`.
+        camera: The camera actually used, after clamping.
+        framing: The framing actually used, after clamping.
+        joints_in_frame: Body joints (of 17) seen and inside the canvas, for
+            the drawn person with the most. Few left (a close-up) means a
+            body-only skeleton has little to follow.
+    """
+
     skeleton: Image.Image
     # Everyone detected, left to right, and which of them was drawn (ALL_PEOPLE for all).
     people: list[Person]
@@ -62,7 +75,11 @@ class PoseResult:
 
 
 def chosen(people: list[Person], person: int | None) -> tuple[int, list[Person]]:
-    """`person` resolved (None = the most confident) and the people it means."""
+    """`person` resolved (None = the most confident) and the people it means.
+
+    Raises:
+        ValueError: `person` is past the end of `people`.
+    """
     if person is None:
         person = most_confident(people)
     if person == ALL_PEOPLE:
@@ -82,13 +99,30 @@ def pose(
     depth: bool = False,
     framing: Framing | None = None,
 ) -> PoseResult:
-    """Detect, choose, turn and draw in one call.
+    """Detect, choose, turn, frame and draw in one call.
 
-    `person` is an index into the left-to-right order, ALL_PEOPLE for
-    everyone, None for the most confident. A `camera` other than the front
-    view needs depth, so it is detected then whatever `depth` says. The
-    skeleton is drawn at `size` (the output's width, height), letterboxed,
-    then `framing` zooms and moves it on that canvas.
+    A `camera` other than the front view needs depth, so it is detected then
+    whatever `depth` says.
+
+    Args:
+        detector: A [Detector][poseorbit.Detector]; load it once and reuse it.
+        image: The reference picture.
+        size: The output's (width, height). The skeleton is drawn at it, the
+            picture letterboxed onto it.
+        person: An index into the left-to-right order, `ALL_PEOPLE` (-1) for
+            everyone, or None for the most confident.
+        camera: Where the camera stands; None for the front view.
+        style: `"dwpose"` or `"openpose"`; see [render][poseorbit.render].
+        depth: Detect depth even for the front view (to read
+            `Person.depth` from the result).
+        framing: Zoom and centre on the canvas; None for the whole picture.
+
+    Returns:
+        The skeleton, everyone found and how it was drawn.
+
+    Raises:
+        NoPersonError: Nobody in the picture is seen well enough.
+        ValueError: `person` is past the end of the people found.
     """
     camera = (camera or Camera()).clamped()
     framing = (framing or Framing()).clamped()

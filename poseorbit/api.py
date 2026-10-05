@@ -39,6 +39,11 @@ class BadRequest(ValueError):
 
 
 def decode_image(data: str) -> Image.Image:
+    """A picture from base64, with or without a `data:` URL prefix.
+
+    Raises:
+        BadRequest: It is not a picture.
+    """
     if data.startswith("data:"):
         data = data.split(",", 1)[1]
     try:
@@ -50,6 +55,7 @@ def decode_image(data: str) -> Image.Image:
 
 
 def encode_png(image: Image.Image) -> str:
+    """A picture as base64 PNG (no `data:` prefix)."""
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode("ascii")
@@ -62,6 +68,11 @@ def _number(value: Any, name: str) -> float:
 
 
 def parse_camera(value: Any) -> tuple[Camera | None, Framing | None]:
+    """The request's `camera` object as a clamped Camera and Framing (None when absent).
+
+    Raises:
+        BadRequest: It is not an object of numbers.
+    """
     if value is None:
         return None, None
     if not isinstance(value, dict):
@@ -83,7 +94,22 @@ def parse_camera(value: Any) -> tuple[Camera | None, Framing | None]:
 
 
 def handle(detector: Detector, body: dict[str, Any], default_style: Style = "dwpose") -> dict[str, Any]:
-    """Answers one request. Raises BadRequest (and NoPersonError, a ValueError) for a 400."""
+    """Answers one `/api/pose` request (the JSON above), without a web framework.
+
+    Args:
+        detector: The [Detector][poseorbit.Detector] to use.
+        body: The request's JSON object.
+        default_style: The style when the request names none; a generation
+            server passes the one its loaded model needs.
+
+    Returns:
+        The answer's JSON object.
+
+    Raises:
+        BadRequest: The request is wrong; answer 400 with its message.
+        NoPersonError: Nobody in the picture; also a 400.
+        ValueError: A person index past the end; also a 400.
+    """
     data = body.get("image_base64")
     if not isinstance(data, str) or not data:
         raise BadRequest("image_base64 is required")

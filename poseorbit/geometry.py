@@ -38,11 +38,24 @@ MAX_ZOOM = 6.0
 
 @dataclass(frozen=True)
 class Framing:
+    """Zoom and centre on the output canvas, like cropping a photo.
+
+    The canvas point (`x`, `y`) moves to the middle and everything scales by
+    `zoom` around it. `Framing()` is the whole picture.
+
+    Attributes:
+        zoom: From `MIN_ZOOM` (0.5, room around the figure) to `MAX_ZOOM`
+            (6, about a face close-up of a full-body picture).
+        x: The canvas point to centre, as a fraction of its width.
+        y: The same, as a fraction of its height.
+    """
+
     zoom: float = 1.0
     x: float = 0.5  # the canvas point put in the middle, as fractions of its width
     y: float = 0.5  # and height
 
     def clamped(self) -> "Framing":
+        """The same framing held to the zoom limits and inside the canvas."""
         return Framing(
             zoom=float(np.clip(self.zoom, MIN_ZOOM, MAX_ZOOM)),
             x=float(np.clip(self.x, 0.0, 1.0)),
@@ -51,15 +64,25 @@ class Framing:
 
     @property
     def is_whole(self) -> bool:
+        """Whether this is the whole picture: zoom 1, centred."""
         return self == Framing()
 
 
 @dataclass(frozen=True)
 class Camera:
+    """An orthographic camera orbiting the figure. `Camera()` is the front view.
+
+    Attributes:
+        yaw: Degrees; positive swings the camera to the viewer's right. Held
+            to +-`MAX_YAW` (90).
+        pitch: Degrees; positive raises the camera. Held to +-`MAX_PITCH` (45).
+    """
+
     yaw: float = 0.0  # degrees, + = camera to the viewer's right
     pitch: float = 0.0  # degrees, + = camera above
 
     def clamped(self) -> "Camera":
+        """The same camera held to `MAX_YAW` and `MAX_PITCH`."""
         return Camera(
             yaw=float(np.clip(self.yaw, -MAX_YAW, MAX_YAW)),
             pitch=float(np.clip(self.pitch, -MAX_PITCH, MAX_PITCH)),
@@ -67,13 +90,22 @@ class Camera:
 
     @property
     def is_front(self) -> bool:
+        """Whether this is the front view (no depth needed)."""
         return abs(self.yaw) < 1e-6 and abs(self.pitch) < 1e-6
 
 
 def view(points: np.ndarray, centre: np.ndarray, camera: Camera) -> np.ndarray:
-    """(..., 3) points seen from `camera` orbiting `centre`: (..., 2) on screen.
+    """Points seen from `camera` orbiting `centre`.
 
     The front view (yaw 0, pitch 0) returns x and y unchanged.
+
+    Args:
+        points: (..., 3) x right, y down, depth away from the viewer, in pixels.
+        centre: (3,) the point the camera orbits.
+        camera: Where the camera stands.
+
+    Returns:
+        (..., 2) the points on screen, in the same pixels.
     """
     yaw, pitch = math.radians(camera.yaw), math.radians(camera.pitch)
     # Where the camera stands, as a unit vector from the centre (y down, z away).
@@ -98,7 +130,16 @@ def scene_centre(points: np.ndarray) -> np.ndarray:
 
 
 def frame(keypoints: np.ndarray, size: tuple[int, int], framing: Framing) -> np.ndarray:
-    """(..., 2) canvas points after `framing` on a `size` canvas."""
+    """Canvas points after `framing` on a `size` canvas.
+
+    Args:
+        keypoints: (..., 2) points on the canvas, in pixels.
+        size: The canvas's (width, height).
+        framing: The zoom and centre.
+
+    Returns:
+        (..., 2) the framed points.
+    """
     canvas = np.array(size, float)
     centre = np.array([framing.x, framing.y]) * canvas
     return (keypoints - centre) * framing.zoom + canvas / 2

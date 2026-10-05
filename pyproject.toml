@@ -36,6 +36,7 @@ test = ["pytest>=8"]
 
 [project.urls]
 Homepage = "https://github.com/33rd-kk/poseorbit"
+Documentation = "https://33rd-kk.github.io/poseorbit/"
 Issues = "https://github.com/33rd-kk/poseorbit/issues"
 Changelog = "https://github.com/33rd-kk/poseorbit/blob/main/CHANGELOG.md"
 
@@ -51,4 +52,4 @@ packages = ["poseorbit"]
 
 [tool.hatch.build.targets.sdist]
 # The README's pictures and the banner script stay in the repository only.
-exclude = ["docs", "scripts", ".github"]
+exclude = ["docs", "scripts", ".github", "mkdocs.yml"]
