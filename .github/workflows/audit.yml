@@ -1,0 +1,37 @@
+# Known vulnerabilities in what poseorbit installs, direct and indirect,
+# checked by pip-audit against the PyPI and OSV advisory databases. Weekly,
+# so a vulnerability published after a release is still caught, and on any
+# change to the dependencies.
+name: Dependency audit
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays 03:17 UTC
+  push:
+    branches: [main]
+    paths: [pyproject.toml, .github/workflows/audit.yml]
+  pull_request:
+    paths: [pyproject.toml, .github/workflows/audit.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      # Everything the package and its server extra pull in, as a user gets it.
+      - run: |
+          python -m venv /tmp/audit
+          /tmp/audit/bin/pip install --upgrade pip
+          /tmp/audit/bin/pip install -e ".[server]"
+          pip install pip-audit
+      # poseorbit itself (editable, not on PyPI) is skipped; any finding fails the job.
+      - run: pip-audit --path /tmp/audit/lib/python3.13/site-packages --skip-editable --desc on
