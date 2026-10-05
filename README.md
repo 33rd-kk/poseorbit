@@ -1,11 +1,12 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.png">
-  <img alt="poseorbit: a picture, the skeleton turned 30 degrees and the picture generated from it, then a zoomed skeleton and the close-up generated from it" src="docs/assets/banner-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/banner-dark.png">
+  <img alt="poseorbit: a picture, the skeleton turned 30 degrees and the picture generated from it, then a zoomed skeleton and the close-up generated from it" src="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/banner-light.png">
 </picture>
 
 # poseorbit
 
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/poseorbit.svg)](https://pypi.org/project/poseorbit/)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/33rd-kk/poseorbit/blob/main/LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 ![CPU only](https://img.shields.io/badge/runs%20on-CPU-555.svg)
 [![Tests](https://github.com/33rd-kk/poseorbit/actions/workflows/test.yml/badge.svg)](https://github.com/33rd-kk/poseorbit/actions/workflows/test.yml)
@@ -35,7 +36,7 @@ One reference, two skeletons, two pictures generated from them:
 
 | Reference | Turned: `Camera(yaw=-30)` | Generated | Close-up: `Framing(zoom=5)` on the face | Generated |
 |---|---|---|---|---|
-| <img src="docs/assets/examples/reference.jpg" width="150" alt="reference picture: a girl in a grey hoodie waving, legs crossed"> | <img src="docs/assets/examples/turn-skeleton.png" width="150" alt="the reference's skeleton turned 30 degrees"> | <img src="docs/assets/examples/turn-result.jpg" width="150" alt="picture generated from the turned skeleton"> | <img src="docs/assets/examples/closeup-skeleton.png" width="150" alt="the reference's skeleton zoomed five times on the face"> | <img src="docs/assets/examples/closeup-result.jpg" width="150" alt="close-up generated from the zoomed skeleton"> |
+| <img src="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/examples/reference.jpg" width="150" alt="reference picture: a girl in a grey hoodie waving, legs crossed"> | <img src="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/examples/turn-skeleton.png" width="150" alt="the reference's skeleton turned 30 degrees"> | <img src="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/examples/turn-result.jpg" width="150" alt="picture generated from the turned skeleton"> | <img src="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/examples/closeup-skeleton.png" width="150" alt="the reference's skeleton zoomed five times on the face"> | <img src="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/examples/closeup-result.jpg" width="150" alt="close-up generated from the zoomed skeleton"> |
 
 All pictures were generated for this README. The reference: Illustrious XL
 2.0, "1girl, solo, full body, standing, waving, one hand raised, head tilt,
@@ -138,9 +139,12 @@ about 0.7 s for one person on a desktop CPU, all three models together.
 Python 3.10 or newer.
 
 ```sh
-pip install "poseorbit @ git+https://github.com/33rd-kk/poseorbit"
-pip install "poseorbit[server] @ git+https://github.com/33rd-kk/poseorbit"   # with the HTTP server
+pip install poseorbit
+pip install "poseorbit[server]"     # with the HTTP server
 ```
+
+The latest `main`, before it is released:
+`pip install "poseorbit @ git+https://github.com/33rd-kk/poseorbit"`.
 
 The model files (about 700 MB, all Apache-2.0) download from Hugging Face on
 first use into `~/.cache/poseorbit`, or the `weights_dir` you give `Detector`.
@@ -299,11 +303,11 @@ python scripts/make_banner.py      # redraws docs/assets/banner-*.png
 
 Report vulnerabilities privately through
 [GitHub's reporting](https://github.com/33rd-kk/poseorbit/security/advisories/new);
-see [SECURITY.md](SECURITY.md).
+see [SECURITY.md](https://github.com/33rd-kk/poseorbit/blob/main/SECURITY.md).
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE), and [NOTICE](NOTICE) for the third-party
+Apache-2.0. See [LICENSE](https://github.com/33rd-kk/poseorbit/blob/main/LICENSE), and [NOTICE](https://github.com/33rd-kk/poseorbit/blob/main/NOTICE) for the third-party
 work poseorbit builds on (rtmlib; the OpenPose drawing from xinsir's model
 card and controlnet_aux). The model files (OpenMMLab's YOLOX, RTMW and
 RTMW3D, Apache-2.0) are downloaded, not shipped. Models you condition with

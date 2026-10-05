@@ -1,6 +1,6 @@
 [project]
 name = "poseorbit"
-version = "0.1.0"
+version = "0.1.1"
 description = "Find the people in a picture, turn their pose in 3D, and draw the skeleton a pose-conditioned image model follows."
 readme = "README.md"
 license = "Apache-2.0"

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-10-06)
+
+- Published on PyPI: `pip install poseorbit`. Releases are uploaded from
+  GitHub Actions with Trusted Publishing and signed attestations.
+- The README's pictures and links are absolute, so they show on PyPI too.
+
 ## 0.1.0 (2026-10-05)
 
 First release.
