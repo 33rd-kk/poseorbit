@@ -53,5 +53,6 @@ p' = (p − (x·W, y·H)) · zoom + (W/2, H/2)
 
 An orthographic three.js camera aimed as above shows the same skeleton when
 its bounds are the framed part of the canvas, mapped back to picture units
-around the scene centre. Latentry's 3D view does exactly this and is tested
-against poseorbit's numbers to within 0.05 px.
+around the scene centre. [Latentry](https://github.com/33rd-kk/latentry)'s 3D
+view does exactly this and is tested against poseorbit's numbers to within
+0.05 px.

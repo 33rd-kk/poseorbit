@@ -100,8 +100,9 @@ Turning a pose in 3D for ControlNet is not new (see
   body-only skeleton has little to follow.
 - **What you preview is what is followed.** The whole mapping (turn,
   letterbox, framing) is specified [below](#coordinates), so a browser
-  viewer can show exactly what will be drawn. Latentry's three.js view is
-  tested against it to within 0.05 px.
+  viewer can show exactly what will be drawn.
+  [Latentry](https://github.com/33rd-kk/latentry)'s three.js view is tested
+  against it to within 0.05 px.
 - **No framework attached.** No ComfyUI or web UI required, no torch, no
   GPU: a library, `python -m poseorbit draw`, or `python -m poseorbit serve`
   answering `POST /api/pose`. A generation server can embed the same handler
@@ -292,8 +293,8 @@ Other ways to get a turned or posed skeleton, each with its own strengths:
 
 ## Used by
 
-Latentry, a local web UI for diffusion backends, uses poseorbit for its pose
-slot and its 3D pose view.
+[Latentry](https://github.com/33rd-kk/latentry), a local web UI for diffusion
+backends, uses poseorbit for its pose slot and its 3D pose view.
 
 ## Development
 
