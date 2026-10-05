@@ -5,7 +5,7 @@
 
 # poseorbit
 
-[![PyPI](https://img.shields.io/pypi/v/poseorbit.svg)](https://pypi.org/project/poseorbit/)
+[![PyPI](https://img.shields.io/pypi/v/poseorbit)](https://pypi.org/project/poseorbit/)
 [![Docs](https://img.shields.io/badge/docs-33rd--kk.github.io%2Fposeorbit-7c6cf0.svg)](https://33rd-kk.github.io/poseorbit/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/33rd-kk/poseorbit/blob/main/LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
