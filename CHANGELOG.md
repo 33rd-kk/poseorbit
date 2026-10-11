@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.2 (unreleased)
+## 0.1.2 (2026-10-11)
 
 - **Pinned model downloads**: the three ONNX files come from a fixed commit
   of their Hugging Face repository, and both the download and the onnx kept
