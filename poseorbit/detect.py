@@ -16,6 +16,7 @@ person at 832x1216, all three models together.
 
 from __future__ import annotations
 
+import hashlib
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,13 +29,44 @@ KEYPOINT_THRESHOLD = 0.3
 # Of the 17 body keypoints, how many must be seen for a detection to be a person.
 MIN_BODY_KEYPOINTS = 8
 
-# The ONNX files: (Hugging Face repository, path in it, local name). All are
-# OpenMMLab models under Apache-2.0. The first two come zipped from rtmlib's
-# own mirror of OpenMMLab's downloads (download.openmmlab.com has been
-# unreliable); the onnx inside is kept, renamed.
-DETECTOR_FILE = ("Tau-J/RTMPose", "rtmposev1/onnx_sdk/yolox_m_8xb8-300e_humanart-c2c7a14a.zip", "yolox_m_8xb8-300e_humanart-c2c7a14a.onnx")
-POSE_2D_FILE = ("Tau-J/RTMPose", "rtmw/onnx_sdk/rtmw-dw-x-l_simcc-cocktail14_270e-256x192_20231122.zip", "rtmw-dw-x-l_simcc-cocktail14_270e-256x192_20231122.onnx")
-POSE_3D_FILE = ("Soykaf/RTMW3D-x", "onnx/rtmw3d-x_8xb64_cocktail14-384x288-b0a0eab7_20240626.onnx", "rtmw3d-x_8xb64_cocktail14-384x288-b0a0eab7_20240626.onnx")
+@dataclass(frozen=True)
+class ModelFile:
+    """One ONNX file and where it comes from, pinned to a commit and its SHA-256."""
+
+    repo: str  # Hugging Face repository
+    revision: str  # the commit it is taken from
+    filename: str  # path in the repository: an .onnx, or a .zip with one inside
+    sha256: str  # of `filename` as downloaded
+    name: str  # the onnx's local name
+    onnx_sha256: str  # of the onnx kept: the same as `sha256` unless zipped
+
+
+# All are OpenMMLab models under Apache-2.0. The first two come zipped from
+# rtmlib's own mirror of OpenMMLab's downloads (download.openmmlab.com has
+# been unreliable); the onnx inside is kept, renamed.
+_RTMPOSE = ("Tau-J/RTMPose", "cd4d7095f5cfc9cfc4f46289bee91ea4a1e1d9fd")
+DETECTOR_FILE = ModelFile(
+    *_RTMPOSE,
+    "rtmposev1/onnx_sdk/yolox_m_8xb8-300e_humanart-c2c7a14a.zip",
+    "a000224fd8ba283202bc62d4a5fcdfe353adb9f468777dbac1ea2ada2093adde",
+    "yolox_m_8xb8-300e_humanart-c2c7a14a.onnx",
+    "3dea6513388889f0fff4b77bf7a26013600321b9eb9ceb0e9a400a82572f5f23",
+)
+POSE_2D_FILE = ModelFile(
+    *_RTMPOSE,
+    "rtmw/onnx_sdk/rtmw-dw-x-l_simcc-cocktail14_270e-256x192_20231122.zip",
+    "1e3e77558dfc199129bfff1c583e51b4ee190914de6ae30688243c20163c148c",
+    "rtmw-dw-x-l_simcc-cocktail14_270e-256x192_20231122.onnx",
+    "9a9bc17c13ff0a1e37507f45a037a21bc410cd08374b0e664c57d0080843aa58",
+)
+POSE_3D_FILE = ModelFile(
+    "Soykaf/RTMW3D-x",
+    "a4f0d54c52ee44ee4e1dda1936d714490c6234d2",
+    "onnx/rtmw3d-x_8xb64_cocktail14-384x288-b0a0eab7_20240626.onnx",
+    "4a289c0e99d47eb595e99679d9d4a2d1def1b4241f9adcbafba44b9ff585ebcd",
+    "rtmw3d-x_8xb64_cocktail14-384x288-b0a0eab7_20240626.onnx",
+    "4a289c0e99d47eb595e99679d9d4a2d1def1b4241f9adcbafba44b9ff585ebcd",
+)
 # Where the files go when the caller names no folder.
 DEFAULT_WEIGHTS_DIR = Path.home() / ".cache" / "poseorbit"
 
@@ -84,32 +116,73 @@ class Person:
         return np.column_stack([self.keypoints, depth])
 
 
-def model_file(spec: tuple[str, str, str], weights_dir: Path | None) -> str:
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+# Files already checked, by (path, size, mtime_ns), so a new Detector on the
+# same folder does not hash 700 MB again. Kept in memory only.
+_checked: set[tuple[str, int, int]] = set()
+
+
+def _matches(path: Path, sha256: str) -> bool:
+    if not path.is_file():
+        return False
+    stat = path.stat()
+    key = (str(path), stat.st_size, stat.st_mtime_ns)
+    if key not in _checked:
+        if _sha256(path) != sha256:
+            return False
+        _checked.add(key)
+    return True
+
+
+def model_file(spec: ModelFile, weights_dir: Path | None) -> str:
     """A local path to one of the ONNX files, downloading it the first time.
 
-    Kept as `<weights_dir>/<local name>` (default ~/.cache/poseorbit).
+    Kept as `<weights_dir>/<local name>` (default ~/.cache/poseorbit). The
+    file comes from the pinned commit and is checked against its SHA-256; one
+    already there that does not match is removed and downloaded again.
+
+    Raises:
+        RuntimeError: The download does not match its pinned SHA-256.
     """
     import shutil
+    import tempfile
     import zipfile
 
     from huggingface_hub import hf_hub_download
 
-    repo, filename, name = spec
     folder = weights_dir or DEFAULT_WEIGHTS_DIR
-    local = folder / name
-    if local.is_file() and local.stat().st_size > 1_000_000:
+    local = folder / spec.name
+    if _matches(local, spec.onnx_sha256):
         return str(local)
+    local.unlink(missing_ok=True)
     folder.mkdir(parents=True, exist_ok=True)
-    downloaded = hf_hub_download(repo, filename)
-    partial = local.with_suffix(".part")
-    if filename.endswith(".zip"):
-        with zipfile.ZipFile(downloaded) as archive:
-            member = next(item for item in archive.namelist() if item.endswith(".onnx"))
-            with archive.open(member) as source, open(partial, "wb") as target:
-                shutil.copyfileobj(source, target)
-    else:
-        shutil.copyfile(downloaded, partial)
+    # Downloaded into a folder of its own that goes afterwards, so no second
+    # copy stays behind in Hugging Face's shared cache.
+    with tempfile.TemporaryDirectory(dir=folder, prefix=".download-") as scratch:
+        downloaded = Path(hf_hub_download(spec.repo, spec.filename, revision=spec.revision, local_dir=scratch))
+        if _sha256(downloaded) != spec.sha256:
+            raise RuntimeError(f"{spec.repo}/{spec.filename} does not match its pinned SHA-256")
+        partial = local.with_suffix(".part")
+        if spec.filename.endswith(".zip"):
+            with zipfile.ZipFile(downloaded) as archive:
+                member = next(item for item in archive.namelist() if item.endswith(".onnx"))
+                with archive.open(member) as source, open(partial, "wb") as target:
+                    shutil.copyfileobj(source, target)
+        else:
+            shutil.copyfile(downloaded, partial)
+    if _sha256(partial) != spec.onnx_sha256:
+        partial.unlink(missing_ok=True)
+        raise RuntimeError(f"{spec.name} from {spec.repo}/{spec.filename} does not match its pinned SHA-256")
     partial.replace(local)
+    stat = local.stat()
+    _checked.add((str(local), stat.st_size, stat.st_mtime_ns))
     return str(local)
 
 

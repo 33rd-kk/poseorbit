@@ -153,6 +153,8 @@ The latest `main`, before it is released:
 
 The model files (about 700 MB, all Apache-2.0) download from Hugging Face on
 first use into `~/.cache/poseorbit`, or the `weights_dir` you give `Detector`.
+Each comes from a fixed commit and is checked against its SHA-256 before it
+is used; nothing is left behind in Hugging Face's own cache.
 
 ## Use
 
