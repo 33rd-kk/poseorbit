@@ -1,11 +1,18 @@
 """python -m poseorbit serve [--host 127.0.0.1] [--port 7870] [--weights-dir DIR]
-python -m poseorbit draw PICTURE OUT.png [--size 832x1216] [--person N] [--yaw D] [--pitch D]
+python -m poseorbit draw PICTURE OUT.png [--size 832x1216] [--person N|N,M,...] [--yaw D] [--pitch D]
                          [--zoom Z --centre X,Y] [--style S]"""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
+
+
+def _person(text: str) -> int | list[int]:
+    """`--person`: one index (-1 for everyone), or several as "0,2"."""
+    if "," in text:
+        return [int(part) for part in text.split(",") if part.strip()]
+    return int(text)
 
 
 def main() -> None:
@@ -22,7 +29,7 @@ def main() -> None:
     draw.add_argument("picture", type=Path)
     draw.add_argument("out", type=Path)
     draw.add_argument("--size", default=None, help="WIDTHxHEIGHT (default: the picture's)")
-    draw.add_argument("--person", type=int, default=None, help="index, or -1 for everyone")
+    draw.add_argument("--person", type=_person, default=None, help="index, several as 0,2, or -1 for everyone")
     draw.add_argument("--yaw", type=float, default=0.0)
     draw.add_argument("--pitch", type=float, default=0.0)
     draw.add_argument("--zoom", type=float, default=1.0)

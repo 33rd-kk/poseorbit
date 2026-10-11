@@ -85,9 +85,9 @@ Turning a pose in 3D for ControlNet is not new (see
   person boxes. Hands and face turn with the body instead of staying flat or
   being dropped, and the front view is pixel-identical to plain 2D detection.
 - **Choose a person in a group.** Everyone found comes back left to right
-  with a box, so index 1 is the same person on every call. Draw one of them
-  or all of them, turned together around a shared centre so the group keeps
-  its layout.
+  with a box, so index 1 is the same person on every call. Draw one of them,
+  any few of them (`person=[0, 2]`) or all of them, turned together around a
+  shared centre so the group keeps its layout.
 - **Drawn for the model that will read it.** `dwpose` is rtmlib's
   COCO-WholeBody drawing (thin lines, hands and face), the usual input of
   DWPose-trained adapters. `openpose` is the thick, body-only drawing
@@ -214,7 +214,7 @@ curl -s localhost:7870/api/pose -H 'Content-Type: application/json' -d '{
 ```
 
 ```json
-{ "skeleton_base64": "…png…", "width": 832, "height": 1216, "person": 0,
+{ "skeleton_base64": "…png…", "width": 832, "height": 1216, "person": 0, "person_subsets": true,
   "camera": { "yaw": 30, "pitch": 10, "framing": { "zoom": 2, "x": 0.5, "y": 0.35 } },
   "style": "openpose", "limits": { "yaw": 90, "pitch": 45, "zoom": [0.5, 6] },
   "joints_in_frame": 13,
@@ -223,8 +223,10 @@ curl -s localhost:7870/api/pose -H 'Content-Type: application/json' -d '{
 ```
 
 Everything but `image_base64` is optional. `person` is an index into
-`people` (left to right), `-1` for everyone, or absent for the most
-confident. `want_3d` adds each person's 133 points as `[x, y, z]` in units of
+`people` (left to right), a list of indices for some of them (`[0, 2]`, up to
+64; answered sorted), `-1` for everyone, or absent for the most confident.
+`person_subsets: true` in the answer tells a client it may send a list (0.2.0
+and later). `want_3d` adds each person's 133 points as `[x, y, z]` in units of
 the picture's width, for a 3D viewer. Out-of-range angles and zoom are
 clamped; a picture with nobody in it, or a person index past the end, gets a
 400 with a `detail` message. Server and API are 127.0.0.1-only by default.

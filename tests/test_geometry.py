@@ -82,6 +82,17 @@ def test_choosing_people():
         chosen(people, 2)
 
 
+def test_choosing_some_people_by_a_list():
+    people = [_person(10), _person(20), _person(30)]
+    # Sorted, without repeats, in left-to-right order.
+    assert chosen(people, [2, 0, 2]) == ([0, 2], [people[0], people[2]])
+    assert chosen(people, (1,)) == ([1], [people[1]])
+    with pytest.raises(ValueError):
+        chosen(people, [])
+    with pytest.raises(ValueError):
+        chosen(people, [0, 3])
+
+
 def test_whole_framing_changes_nothing():
     points = np.array([[10.0, 20.0], [300.0, 400.0]])
     assert np.allclose(frame(points, (832, 1216), Framing()), points)

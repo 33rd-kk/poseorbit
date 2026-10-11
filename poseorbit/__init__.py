@@ -11,6 +11,7 @@ pose in 3D, and draw the skeleton a pose-conditioned image model follows.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -20,7 +21,7 @@ from .detect import KEYPOINT_THRESHOLD, Detector, NoPersonError, Person, most_co
 from .draw import STYLES, Style, letterbox, render
 from .geometry import MAX_PITCH, MAX_YAW, MAX_ZOOM, MIN_ZOOM, Camera, Framing, fit, frame, scene_centre, view
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 
 # Person index meaning "everyone detected", for a group pose.
 ALL_PEOPLE = -1
@@ -53,7 +54,8 @@ class PoseResult:
     Attributes:
         skeleton: The skeleton on black, at the requested size.
         people: Everyone detected, left to right.
-        person: Who was drawn: an index into `people`, or `ALL_PEOPLE`.
+        person: Who was drawn: an index into `people`, `ALL_PEOPLE`, or the
+            sorted indices when several were chosen by a list.
         camera: The camera actually used, after clamping.
         framing: The framing actually used, after clamping.
         joints_in_frame: Body joints (of 17) seen and inside the canvas, for
@@ -62,9 +64,10 @@ class PoseResult:
     """
 
     skeleton: Image.Image
-    # Everyone detected, left to right, and which of them was drawn (ALL_PEOPLE for all).
+    # Everyone detected, left to right, and which of them was drawn: an index,
+    # ALL_PEOPLE for all, or the sorted indices of the ones chosen.
     people: list[Person]
-    person: int
+    person: int | list[int]
     # The camera and framing actually used, after clamping.
     camera: Camera
     framing: Framing
@@ -74,26 +77,38 @@ class PoseResult:
     joints_in_frame: int
 
 
-def chosen(people: list[Person], person: int | None) -> tuple[int, list[Person]]:
+def chosen(people: list[Person], person: int | Sequence[int] | None) -> tuple[int | list[int], list[Person]]:
     """`person` resolved (None = the most confident) and the people it means.
 
+    A sequence chooses any of them: the indices come back sorted, without
+    repeats, and the people in that (left-to-right) order.
+
     Raises:
-        ValueError: `person` is past the end of `people`.
+        ValueError: `person` (or one of a sequence) is past the end of
+            `people`, or the sequence is empty.
     """
     if person is None:
         person = most_confident(people)
-    if person == ALL_PEOPLE:
-        return person, people
-    if 0 <= person < len(people):
-        return person, [people[person]]
-    raise ValueError(f"No person {person}: {len(people)} found.")
+    if isinstance(person, int):
+        if person == ALL_PEOPLE:
+            return person, people
+        if 0 <= person < len(people):
+            return person, [people[person]]
+        raise ValueError(f"No person {person}: {len(people)} found.")
+    indices = sorted(set(person))
+    if not indices:
+        raise ValueError("Choose at least one person.")
+    for index in indices:
+        if not 0 <= index < len(people):
+            raise ValueError(f"No person {index}: {len(people)} found.")
+    return indices, [people[index] for index in indices]
 
 
 def pose(
     detector: Detector,
     image: Image.Image,
     size: tuple[int, int],
-    person: int | None = None,
+    person: int | Sequence[int] | None = None,
     camera: Camera | None = None,
     style: Style = "dwpose",
     depth: bool = False,
@@ -110,7 +125,9 @@ def pose(
         size: The output's (width, height). The skeleton is drawn at it, the
             picture letterboxed onto it.
         person: An index into the left-to-right order, `ALL_PEOPLE` (-1) for
-            everyone, or None for the most confident.
+            everyone, a sequence of indices for some of them (drawn together
+            and turned around their shared centre), or None for the most
+            confident.
         camera: Where the camera stands; None for the front view.
         style: `"dwpose"` or `"openpose"`; see [render][poseorbit.render].
         depth: Detect depth even for the front view (to read
@@ -122,7 +139,8 @@ def pose(
 
     Raises:
         NoPersonError: Nobody in the picture is seen well enough.
-        ValueError: `person` is past the end of the people found.
+        ValueError: `person` (or one of a sequence) is past the end of the
+            people found, or the sequence is empty.
     """
     camera = (camera or Camera()).clamped()
     framing = (framing or Framing()).clamped()
