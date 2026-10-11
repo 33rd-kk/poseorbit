@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.2 (unreleased)
+
+- **Pinned model downloads**: the three ONNX files come from a fixed commit
+  of their Hugging Face repository, and both the download and the onnx kept
+  are checked against their SHA-256 before use. A file already in the
+  weights folder that does not match is downloaded again; one that does
+  match is hashed once per process, in memory only.
+- Downloads go through a temporary folder inside the weights folder, so no
+  second copy stays in Hugging Face's shared cache (`~/.cache/huggingface`).
+  Copies left there by 0.1.1 can be deleted.
+
 ## 0.1.1 (2026-10-06)
 
 - Published on PyPI: `pip install poseorbit`. Releases are uploaded from

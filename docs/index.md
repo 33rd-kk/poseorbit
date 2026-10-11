@@ -21,7 +21,8 @@ pip install "poseorbit[server]"     # with the HTTP server
 ```
 
 Python 3.10 or newer. The model files (about 700 MB, Apache-2.0) download
-from Hugging Face on first use into `~/.cache/poseorbit`.
+from Hugging Face on first use into `~/.cache/poseorbit`, from a fixed commit,
+and each is checked against its SHA-256.
 
 ## In five lines
 
