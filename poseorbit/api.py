@@ -4,14 +4,15 @@ exactly the same JSON.
 
 Request:
     { "image_base64": "...", "width": 832, "height": 1216,
-      "person": 0,                          # optional; -1 = everyone, absent = most confident
+      "person": 0,                          # optional; -1 = everyone, [0, 2] = those, absent = most confident
       "want_3d": true,                      # optional; answer with each person's 3D points
       "camera": { "yaw": 30, "pitch": 10,   # optional; degrees, see geometry.py
                   "framing": { "zoom": 3, "x": 0.5, "y": 0.2 } },  # optional; the canvas point to centre, and zoom
       "style": "openpose" }                 # optional; "dwpose" (default) or "openpose"
 
 Answer:
-    { "skeleton_base64": "...png...", "width": 832, "height": 1216, "person": 0,
+    { "skeleton_base64": "...png...", "width": 832, "height": 1216, "person": 0,   # or the sorted list asked for
+      "person_subsets": true,               # "person" may be a list: a client may offer picking any of them
       "camera": { "yaw": 30, "pitch": 10, "framing": { "zoom": 3, "x": 0.5, "y": 0.2 } },
       "style": "openpose",
       "limits": { "yaw": 90, "pitch": 45, "zoom": [0.5, 6] },
@@ -32,6 +33,10 @@ from PIL import Image
 
 from . import ALL_PEOPLE, MAX_PITCH, MAX_YAW, MAX_ZOOM, MIN_ZOOM, STYLES, Camera, Detector, Framing, pose
 from .draw import Style
+
+# The most people one request may choose by a list: far more than a picture
+# usefully holds, and it bounds the list before anything is detected.
+MAX_CHOSEN = 64
 
 
 class BadRequest(ValueError):
@@ -119,8 +124,12 @@ def handle(detector: Detector, body: dict[str, Any], default_style: Style = "dwp
     if not (64 <= width <= 4096 and 64 <= height <= 4096):
         raise BadRequest("width and height must be 64-4096")
     person = body.get("person")
-    if person is not None and (isinstance(person, bool) or not isinstance(person, int) or person < ALL_PEOPLE):
-        raise BadRequest("person must be an index, or -1 for everyone")
+    if isinstance(person, list):
+        # Bounded before anything is detected; past the people found is a ValueError later.
+        if not 1 <= len(person) <= MAX_CHOSEN or any(isinstance(index, bool) or not isinstance(index, int) or index < 0 for index in person):
+            raise BadRequest(f"person as a list must hold 1-{MAX_CHOSEN} indices")
+    elif person is not None and (isinstance(person, bool) or not isinstance(person, int) or person < ALL_PEOPLE):
+        raise BadRequest("person must be an index, a list of indices, or -1 for everyone")
     style = body.get("style") or default_style
     if style not in STYLES:
         raise BadRequest(f"style must be one of {', '.join(STYLES)}")
@@ -146,6 +155,7 @@ def handle(detector: Detector, body: dict[str, Any], default_style: Style = "dwp
         "width": width,
         "height": height,
         "person": result.person,
+        "person_subsets": True,
         "camera": {
             "yaw": result.camera.yaw,
             "pitch": result.camera.pitch,

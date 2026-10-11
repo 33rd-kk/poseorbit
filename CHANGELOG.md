@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- **Choose some of the people**: `pose(..., person=[0, 2])` draws just those
+  (turned together around their shared centre), and `/api/pose` takes
+  `"person": [0, 2]` (up to 64 indices). The list comes back sorted and
+  without repeats; an empty list or an index past the end is refused.
+  `python -m poseorbit draw --person 0,2` does the same.
+- `/api/pose` answers `"person_subsets": true`, so a client knows it may
+  send a list.
+- **Changed:** `PoseResult.person` (and the answer's `person`) is a list when
+  a list was asked for; code that only passes an int or `ALL_PEOPLE` still
+  gets an int.
+
 ## 0.1.2 (2026-10-11)
 
 - **Pinned model downloads**: the three ONNX files come from a fixed commit

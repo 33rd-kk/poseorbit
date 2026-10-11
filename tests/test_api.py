@@ -44,6 +44,7 @@ def test_an_answer_has_everything_a_client_needs():
     answer = handle(StubDetector([_person(100), _person(300)]), {"image_base64": _picture(), "width": 832, "height": 1216})
     assert answer["width"] == 832 and answer["height"] == 1216
     assert answer["person"] in (0, 1)
+    assert answer["person_subsets"] is True
     assert answer["camera"] == {"yaw": 0.0, "pitch": 0.0, "framing": {"zoom": 1.0, "x": 0.5, "y": 0.5}}
     assert answer["limits"] == {"yaw": 90.0, "pitch": 45.0, "zoom": [0.5, 6.0]}
     assert answer["style"] == "dwpose"
@@ -93,6 +94,11 @@ def test_zooming_in_leaves_fewer_joints_in_frame():
         {"image_base64": "PIC", "width": 10},
         {"image_base64": "PIC", "person": -2},
         {"image_base64": "PIC", "person": True},
+        {"image_base64": "PIC", "person": []},
+        {"image_base64": "PIC", "person": [0, -1]},
+        {"image_base64": "PIC", "person": [0, True]},
+        {"image_base64": "PIC", "person": ["0"]},
+        {"image_base64": "PIC", "person": list(range(65))},
         {"image_base64": "PIC", "style": "sketch"},
         {"image_base64": "PIC", "camera": 5},
         {"image_base64": "PIC", "camera": {"yaw": "left"}},
@@ -111,3 +117,20 @@ def test_nobody_and_a_person_past_the_end_are_refused():
         handle(StubDetector([]), {"image_base64": _picture()})
     with pytest.raises(ValueError):
         handle(StubDetector([_person(200)]), {"image_base64": _picture(), "person": 3})
+    with pytest.raises(ValueError):
+        handle(StubDetector([_person(200)]), {"image_base64": _picture(), "person": [0, 3]})
+
+
+def test_some_people_are_drawn_together():
+    people = [_person(80), _person(200), _person(320)]
+    body = {"image_base64": _picture(), "width": 400, "height": 600}
+    some = handle(StubDetector(people), {**body, "person": [2, 0]})
+    assert some["person"] == [0, 2]
+    assert len(some["people"]) == 3
+    # Two figures draw differently from one, and from all three.
+    one = handle(StubDetector(people), {**body, "person": 0})
+    everyone = handle(StubDetector(people), {**body, "person": -1})
+    assert len({some["skeleton_base64"], one["skeleton_base64"], everyone["skeleton_base64"]}) == 3
+    # Turned, the chosen ones still turn together.
+    turned = handle(StubDetector(people), {**body, "person": [0, 2], "camera": {"yaw": 30}})
+    assert turned["person"] == [0, 2] and turned["camera"]["yaw"] == 30

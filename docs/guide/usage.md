@@ -39,9 +39,14 @@ more; `pose` asks for it only when the camera turns.
 from poseorbit import ALL_PEOPLE, pose
 
 pose(detector, picture, size=(832, 1216), person=0)            # the leftmost
+pose(detector, picture, size=(832, 1216), person=[0, 2])       # those two
 pose(detector, picture, size=(832, 1216), person=ALL_PEOPLE)   # everyone (-1)
 pose(detector, picture, size=(832, 1216))                      # the most confident
 ```
+
+A list draws the people it names, in left-to-right order whatever order it
+is given in; `result.person` is that sorted list. An empty list, or an index
+past the end, raises `ValueError`.
 
 Everyone together turns around one shared centre, so a group keeps its
 layout.
