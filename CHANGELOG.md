@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 (unreleased)
+
+- **Move a joint**: `pose(..., edits=[Edit(person, joint, to)])` turns a
+  joint about its parent to point at `to`, carrying everything hanging from
+  it, so no bone changes length. The head, arms, legs and feet move
+  (`MOVABLE`); a hand moves with its wrist and the face with the head; the
+  hips stay put. Edits apply in order. `bend` and `apply_edits` do the same
+  for points of your own, and `poseorbit.body` holds the keypoint names and
+  their tree.
+- `/api/pose` takes `"edits": [{ "person", "joint", "to": [x, y, z] }]`
+  (up to 256, `to` in picture widths like `points_3d`) and answers
+  `"movable"`, the joints it may move, so a client knows it may send them.
+  `points_3d` stays as detected.
+- A request with edits detects depth even for the front view.
+- The command line does not take edits yet.
+
 ## 0.2.0 (2026-10-11)
 
 - **Choose some of the people**: `pose(..., person=[0, 2])` draws just those

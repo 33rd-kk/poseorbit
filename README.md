@@ -163,7 +163,7 @@ is used; nothing is left behind in Hugging Face's own cache.
 ```python
 from pathlib import Path
 from PIL import Image
-from poseorbit import ALL_PEOPLE, Camera, Detector, Framing, pose
+from poseorbit import ALL_PEOPLE, Camera, Detector, Edit, Framing, pose
 
 detector = Detector(weights_dir=Path("weights"))   # load once, reuse; thread-safe
 picture = Image.open("reference.png")
@@ -175,6 +175,10 @@ result = pose(detector, picture, size=(832, 1216), person=ALL_PEOPLE,
               camera=Camera(yaw=-30), style="dwpose")
 result.skeleton            # PIL image, 832x1216, on black
 result.joints_in_frame     # body joints left inside the canvas
+
+# Raise the first person's left wrist; the hand comes with it, the arm keeps its length.
+x, y, z = detector.detect(picture, depth=True)[0].points_3d[9]
+raised = pose(detector, picture, size=(832, 1216), person=0, edits=[Edit(0, 9, (x, y - 200, z))])
 ```
 
 ### With diffusers
@@ -226,7 +230,10 @@ Everything but `image_base64` is optional. `person` is an index into
 `people` (left to right), a list of indices for some of them (`[0, 2]`, up to
 64; answered sorted), `-1` for everyone, or absent for the most confident.
 `person_subsets: true` in the answer tells a client it may send a list (0.2.0
-and later). `want_3d` adds each person's 133 points as `[x, y, z]` in units of
+and later). `edits` (0.3.0 and later) moves joints, in order:
+`[{ "person": 0, "joint": 9, "to": [x, y, z] }]`, up to 256, `to` in units of
+the picture's width; `movable` in the answer lists the joints it may move.
+`want_3d` adds each person's 133 points as `[x, y, z]` in units of
 the picture's width, for a 3D viewer. Out-of-range angles and zoom are
 clamped; a picture with nobody in it, or a person index past the end, gets a
 400 with a `detail` message. Server and API are 127.0.0.1-only by default.
@@ -236,11 +243,12 @@ clamped; a picture with nobody in it, or a person index past the end, gets a
 | Name | What it is |
 |---|---|
 | `Detector(weights_dir=None, device="cpu")` | Loads the models on first use. `detect(image, depth=False) -> list[Person]`, left to right; raises `NoPersonError`. |
-| `pose(detector, image, size, person=None, camera=None, style="dwpose", depth=False, framing=None) -> PoseResult` | Detect, choose, turn, frame and draw in one call. |
+| `pose(detector, image, size, person=None, camera=None, style="dwpose", depth=False, framing=None, edits=()) -> PoseResult` | Detect, choose, turn, frame and draw in one call. |
 | `Camera(yaw=0, pitch=0)` | Degrees. `+yaw` swings the camera to the viewer's right, `+pitch` raises it. Clamped to `MAX_YAW` (90) / `MAX_PITCH` (45). |
 | `Framing(zoom=1, x=0.5, y=0.5)` | The canvas point `(x, y)` (fractions) goes to the middle, scaled by `zoom` (`MIN_ZOOM` 0.5 to `MAX_ZOOM` 6). |
 | `PoseResult` | `skeleton` (PIL image), `people`, `person`, `camera` and `framing` as used, `joints_in_frame`. |
 | `Person` | `keypoints` (133×2), `scores` (133), `depth` (133 or None), `bbox`, `visible` (body joints seen), `points_3d`. |
+| `Edit(person, joint, to)` | Turn `joint` (one of `MOVABLE`) about its parent to point at `to` (pixels), carrying what hangs from it; bones keep their length. `apply_edits(points, edits)` and `bend(points, joint, to)` do it on arrays. |
 | `render(keypoints, scores, size, style)` | Draw `(N, 133, 2)` keypoints on a black `size` canvas. |
 | `letterbox(skeleton, size)` | Fit a skeleton drawn at another size onto `size`, uniformly scaled and centred. |
 | `poseorbit.api.handle(detector, body, default_style)` | The `/api/pose` handler without a web framework, to embed in another server. |

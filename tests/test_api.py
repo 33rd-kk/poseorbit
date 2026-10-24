@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from poseorbit import MAX_YAW, MAX_ZOOM, NoPersonError, Person
+from poseorbit import MAX_YAW, MAX_ZOOM, MOVABLE, NoPersonError, Person
 from poseorbit.api import BadRequest, handle
 
 
@@ -134,3 +134,41 @@ def test_some_people_are_drawn_together():
     # Turned, the chosen ones still turn together.
     turned = handle(StubDetector(people), {**body, "person": [0, 2], "camera": {"yaw": 30}})
     assert turned["person"] == [0, 2] and turned["camera"]["yaw"] == 30
+
+
+def test_an_edit_moves_the_drawn_skeleton_but_not_the_points():
+    body = {"image_base64": _picture(), "width": 400, "height": 600, "want_3d": True}
+    plain = handle(StubDetector([_person(200)]), body)
+    detector = StubDetector([_person(200)])
+    # The left wrist straight out to the side, front view: depth is still asked for.
+    edited = handle(detector, {**body, "want_3d": False, "edits": [{"person": 0, "joint": 9, "to": [0.9, 0.5, 0]}]})
+    assert detector.asked_depth is True
+    assert edited["skeleton_base64"] != plain["skeleton_base64"]
+    assert edited["movable"] == sorted(MOVABLE)
+    again = handle(StubDetector([_person(200)]), {**body, "edits": [{"person": 0, "joint": 9, "to": [0.9, 0.5, 0]}]})
+    assert again["people"][0]["points_3d"] == plain["people"][0]["points_3d"]
+
+
+@pytest.mark.parametrize(
+    "edits",
+    [
+        5,
+        [5],
+        [{"person": True, "joint": 9, "to": [0, 0, 0]}],
+        [{"person": -1, "joint": 9, "to": [0, 0, 0]}],
+        [{"person": 0, "joint": 11, "to": [0, 0, 0]}],
+        [{"person": 0, "joint": 133, "to": [0, 0, 0]}],
+        [{"person": 0, "joint": 9, "to": [0, 0]}],
+        [{"person": 0, "joint": 9, "to": [0, 0, float("nan")]}],
+        [{"person": 0, "joint": 9, "to": [0, 0, 17]}],
+        [{"person": 0, "joint": 9, "to": [0, 0, 0]}] * 257,
+    ],
+)
+def test_bad_edits_are_refused(edits):
+    with pytest.raises(BadRequest):
+        handle(StubDetector([_person(200)]), {"image_base64": _picture(), "edits": edits})
+
+
+def test_an_edit_for_a_person_past_the_end_is_refused():
+    with pytest.raises(ValueError):
+        handle(StubDetector([_person(200)]), {"image_base64": _picture(), "edits": [{"person": 1, "joint": 9, "to": [0, 0, 0]}]})
