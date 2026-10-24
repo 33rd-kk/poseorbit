@@ -17,11 +17,12 @@ from dataclasses import dataclass
 import numpy as np
 from PIL import Image
 
+from .body import MOVABLE, NAMES, Edit, apply_edits, bend
 from .detect import KEYPOINT_THRESHOLD, Detector, NoPersonError, Person, most_confident
 from .draw import STYLES, Style, letterbox, render
 from .geometry import MAX_PITCH, MAX_YAW, MAX_ZOOM, MIN_ZOOM, Camera, Framing, fit, frame, scene_centre, view
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # Person index meaning "everyone detected", for a group pose.
 ALL_PEOPLE = -1
@@ -30,17 +31,22 @@ __all__ = [
     "ALL_PEOPLE",
     "Camera",
     "Detector",
+    "Edit",
     "Framing",
     "KEYPOINT_THRESHOLD",
     "MAX_PITCH",
     "MAX_YAW",
     "MAX_ZOOM",
     "MIN_ZOOM",
+    "MOVABLE",
+    "NAMES",
     "NoPersonError",
     "Person",
     "PoseResult",
     "STYLES",
     "Style",
+    "apply_edits",
+    "bend",
     "letterbox",
     "pose",
     "render",
@@ -113,11 +119,12 @@ def pose(
     style: Style = "dwpose",
     depth: bool = False,
     framing: Framing | None = None,
+    edits: Sequence[Edit] = (),
 ) -> PoseResult:
     """Detect, choose, turn, frame and draw in one call.
 
-    A `camera` other than the front view needs depth, so it is detected then
-    whatever `depth` says.
+    A `camera` other than the front view, or any `edits`, needs depth, so it
+    is detected then whatever `depth` says.
 
     Args:
         detector: A [Detector][poseorbit.Detector]; load it once and reuse it.
@@ -133,6 +140,9 @@ def pose(
         depth: Detect depth even for the front view (to read
             `Person.depth` from the result).
         framing: Zoom and centre on the canvas; None for the whole picture.
+        edits: Joints to move before turning, in order; see
+            [apply_edits][poseorbit.apply_edits]. `PoseResult.people` stays as
+            detected.
 
     Returns:
         The skeleton, everyone found and how it was drawn.
@@ -140,13 +150,16 @@ def pose(
     Raises:
         NoPersonError: Nobody in the picture is seen well enough.
         ValueError: `person` (or one of a sequence) is past the end of the
-            people found, or the sequence is empty.
+            people found, or the sequence is empty, or an edit names a
+            person past the end or a joint that is not movable.
     """
     camera = (camera or Camera()).clamped()
     framing = (framing or Framing()).clamped()
-    people = detector.detect(image, depth=depth or not camera.is_front)
+    people = detector.detect(image, depth=depth or not camera.is_front or bool(edits))
+    bent = apply_edits([p.points_3d for p in people], edits)
     person, drawn = chosen(people, person)
-    points = np.stack([p.points_3d for p in drawn])
+    indices = range(len(people)) if person == ALL_PEOPLE else [person] if isinstance(person, int) else person
+    points = np.stack([bent[index] for index in indices])
     if camera.is_front:
         flat = points[..., :2]
     else:

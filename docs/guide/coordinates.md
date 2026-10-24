@@ -10,6 +10,18 @@ Depth is relative to each person's hips (the middle of keypoints 11 and 12).
 The HTTP API divides all three by the picture's width, so a client needs
 neither its size nor its aspect.
 
+## Moving a joint
+
+An edit's `to` is in the same units as the points (pixels in Python, picture
+widths over HTTP). The joint turns about its parent (the nose about the
+middle of the shoulders) by the smallest rotation that points it at `to`, and
+every point below it in the tree turns by the same rotation about the same
+point. So the joint lands on the line from its parent through `to`, at its
+old distance. Pointing straight back is half a turn about an axis square to
+the bone; a `to` on the parent changes nothing. Edits apply in order, before
+the camera turns the scene, and the scene centre is the hips, which never
+move.
+
 ## The camera
 
 The camera orbits the **scene centre**: the middle of the drawn people's

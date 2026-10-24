@@ -72,7 +72,44 @@ which limb is in front gets unreliable.
     the turn moderate, and put "front view" in the prompt and "from behind"
     in the negative.
 
-## 4. Frame it
+## 4. Move a joint
+
+```python
+from poseorbit import Edit
+
+left_elbow, left_wrist = 7, 9
+figure = result.people[0].points_3d   # detected with depth=True
+x, y, z = figure[left_wrist]
+result = pose(detector, picture, size=(832, 1216), person=0,
+              edits=[Edit(0, left_elbow, (x - 80, y - 120, z)),
+                     Edit(0, left_wrist, (x - 60, y - 260, z - 40))])
+```
+
+An [`Edit`][poseorbit.Edit] turns one joint about its parent until it points
+at `to` (x, y and depth in the picture's pixels, like `Person.points_3d`).
+Everything hanging from it turns too, and no bone changes length: moving an
+elbow swings the forearm and the hand. Edits apply in order, each to the pose
+the ones before left, so the same list always gives the same pose.
+
+These joints move (`MOVABLE`):
+
+| Joint | Turns about | Carries |
+|---|---|---|
+| Nose (0) | The middle of the shoulders | Eyes, ears and face |
+| Shoulders (5, 6) | The hip on its side | The whole arm and hand |
+| Elbows (7, 8), wrists (9, 10) | The shoulder, the elbow | The rest of the arm and the hand |
+| Knees (13, 14), ankles (15, 16) | The hip, the knee | The rest of the leg and the foot |
+| Toes and heels (17–22) | The ankle | Nothing |
+
+The hips are the root and stay put; turn the whole figure with the camera.
+Moving a shoulder leaves the head where it is. Fingers do not move one by
+one: a hand keeps its shape. `PoseResult.people` stays as detected, and edits
+need depth, so it is detected whenever there are any.
+
+To bend points of your own, call [`bend`][poseorbit.bend] or
+[`apply_edits`][poseorbit.apply_edits].
+
+## 5. Frame it
 
 ```python
 from poseorbit import Framing
@@ -91,7 +128,7 @@ figure. Framing never moves the point the camera orbits.
 `joints_in_frame` tells how much of the body is left: with a body-only
 skeleton (the `openpose` style), a close-up keeps few points to follow.
 
-## 5. Draw it
+## 6. Draw it
 
 `pose` draws for you, in `style="dwpose"` or `style="openpose"`; see
 [Skeleton styles](styles.md). The result's `skeleton` is a PIL image at

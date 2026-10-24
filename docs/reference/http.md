@@ -32,7 +32,8 @@ A generation server can answer the same requests by calling
   "want_3d": true,
   "camera": { "yaw": 30, "pitch": 10,
               "framing": { "zoom": 2, "x": 0.5, "y": 0.35 } },
-  "style": "openpose"
+  "style": "openpose",
+  "edits": [ { "person": 0, "joint": 9, "to": [0.42, 0.18, -0.04] } ]
 }
 ```
 
@@ -46,6 +47,7 @@ A generation server can answer the same requests by calling
 | `camera.framing.zoom` | no | 0.5–6, clamped; 1 by default |
 | `camera.framing.x`, `.y` | no | The canvas point to centre, fractions 0–1; 0.5 by default |
 | `style` | no | `"dwpose"` (default) or `"openpose"` |
+| `edits` | no | Up to 256 joints to move, in order; see [Move a joint](../guide/usage.md#4-move-a-joint). `person` is an index into `people`, `joint` one of `movable`, `to` the point it should point at, `[x, y, z]` in units of the picture's width like `points_3d` (each within ±16) |
 
 ### Answer
 
@@ -53,6 +55,7 @@ A generation server can answer the same requests by calling
 {
   "skeleton_base64": "iVBORw0KGgo…",
   "width": 832, "height": 1216, "person": 0,
+  "movable": [0, 5, 6, 7, 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22],
   "camera": { "yaw": 30.0, "pitch": 10.0,
               "framing": { "zoom": 2.0, "x": 0.5, "y": 0.35 } },
   "style": "openpose",
@@ -70,16 +73,17 @@ A generation server can answer the same requests by calling
 |---|---|
 | `skeleton_base64` | The skeleton, PNG, base64 (no prefix), at `width` × `height` |
 | `person` | Who was drawn: an index, or `-1` |
+| `movable` | The joints `edits` may move; a client offers moving joints only when it is there |
 | `camera` | The camera and framing actually used, after clamping |
 | `limits` | How far the camera and zoom may go; a client can hold its controls to these |
 | `joints_in_frame` | Body joints (of 17) seen and inside the canvas, for the drawn person with the most |
 | `people[].bbox` | Around each person's drawn keypoints, as fractions of the picture, clamped to it |
-| `people[].points_3d` | With `want_3d`: 133 points `[x, y, z]` in units of the picture's width (x right, y down, z away) |
+| `people[].points_3d` | With `want_3d`: 133 points `[x, y, z]` in units of the picture's width (x right, y down, z away), as detected: edits are not applied |
 | `people[].scores` | With `want_3d`: 133 keypoint scores |
 
 ### Errors
 
 `400` with `{"detail": "…"}` for a request that is wrong (no picture, an
 unreadable picture, a size out of range, a camera that is not numbers, an
-unknown style), a picture with nobody in it, or a person index past the end.
+unknown style, an edit that is malformed or names a joint not in `movable`), a picture with nobody in it, or a person index past the end (in `person` or an edit).
 `401` without the right token, when one is set.
