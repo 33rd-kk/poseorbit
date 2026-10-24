@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## 0.3.0 (2026-10-25)
 
 - **Move a joint**: `pose(..., edits=[Edit(person, joint, to)])` turns a
   joint about its parent to point at `to`, carrying everything hanging from
