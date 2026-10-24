@@ -8,17 +8,20 @@ Request:
       "want_3d": true,                      # optional; answer with each person's 3D points
       "camera": { "yaw": 30, "pitch": 10,   # optional; degrees, see geometry.py
                   "framing": { "zoom": 3, "x": 0.5, "y": 0.2 } },  # optional; the canvas point to centre, and zoom
-      "style": "openpose" }                 # optional; "dwpose" (default) or "openpose"
+      "style": "openpose",                  # optional; "dwpose" (default) or "openpose"
+      "edits": [ { "person": 0, "joint": 9,  # optional; joints to move, in order (see body.py)
+                   "to": [x, y, z] } ] }     # where it points, fractions of the picture's width
 
 Answer:
     { "skeleton_base64": "...png...", "width": 832, "height": 1216, "person": 0,   # or the sorted list asked for
       "person_subsets": true,               # "person" may be a list: a client may offer picking any of them
+      "movable": [0, 5, ...],               # the joints "edits" may move
       "camera": { "yaw": 30, "pitch": 10, "framing": { "zoom": 3, "x": 0.5, "y": 0.2 } },
       "style": "openpose",
       "limits": { "yaw": 90, "pitch": 45, "zoom": [0.5, 6] },
       "joints_in_frame": 9,                 # body joints (of 17) seen inside the canvas, best drawn person
       "people": [ { "bbox": [x0, y0, x1, y1],                # fractions of the picture
-                    "points_3d": [[x, y, z], ...],          # with want_3d: 133 points, fractions of the picture's width
+                    "points_3d": [[x, y, z], ...],          # with want_3d: 133 points as detected (before edits), fractions of the picture's width
                     "scores": [...] } ] }                   # with want_3d: 133 scores
 """
 
@@ -31,12 +34,19 @@ from typing import Any
 
 from PIL import Image
 
-from . import ALL_PEOPLE, MAX_PITCH, MAX_YAW, MAX_ZOOM, MIN_ZOOM, STYLES, Camera, Detector, Framing, pose
+from . import ALL_PEOPLE, MAX_PITCH, MAX_YAW, MAX_ZOOM, MIN_ZOOM, MOVABLE, STYLES, Camera, Detector, Edit, Framing, pose
 from .draw import Style
 
 # The most people one request may choose by a list: far more than a picture
 # usefully holds, and it bounds the list before anything is detected.
 MAX_CHOSEN = 64
+
+# The most edits one request may carry: hundreds of drags, and it bounds the
+# work before anything is detected.
+MAX_EDITS = 256
+
+# How far an edit may point, in picture widths: well past any figure.
+_MAX_REACH = 16
 
 
 class BadRequest(ValueError):
@@ -98,6 +108,40 @@ def parse_camera(value: Any) -> tuple[Camera | None, Framing | None]:
     ).clamped()
 
 
+def parse_edits(value: Any, width: int) -> list[Edit]:
+    """The request's `edits` as [Edit][poseorbit.Edit]s in pixels (empty when absent).
+
+    Args:
+        value: The `edits` list: `{ person, joint, to: [x, y, z] }` each, `to`
+            in fractions of the picture's width.
+        width: The picture's width in pixels.
+
+    Raises:
+        BadRequest: It is not such a list, too long, names a joint that is
+            not movable, or points too far.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list) or len(value) > MAX_EDITS:
+        raise BadRequest(f"edits must be a list of at most {MAX_EDITS}")
+    edits = []
+    for edit in value:
+        if not isinstance(edit, dict):
+            raise BadRequest("each edit must be an object { person, joint, to }")
+        person, joint, to = edit.get("person"), edit.get("joint"), edit.get("to")
+        if isinstance(person, bool) or not isinstance(person, int) or person < 0:
+            raise BadRequest("edit.person must be an index")
+        if isinstance(joint, bool) or not isinstance(joint, int) or joint not in MOVABLE:
+            raise BadRequest(f"edit.joint must be one of {sorted(MOVABLE)}")
+        if not isinstance(to, list) or len(to) != 3:
+            raise BadRequest("edit.to must be [x, y, z]")
+        point = [_number(v, "edit.to") for v in to]
+        if any(abs(v) > _MAX_REACH for v in point):
+            raise BadRequest(f"edit.to must be within {_MAX_REACH} picture widths")
+        edits.append(Edit(person, joint, (point[0] * width, point[1] * width, point[2] * width)))
+    return edits
+
+
 def handle(detector: Detector, body: dict[str, Any], default_style: Style = "dwpose") -> dict[str, Any]:
     """Answers one `/api/pose` request (the JSON above), without a web framework.
 
@@ -113,12 +157,13 @@ def handle(detector: Detector, body: dict[str, Any], default_style: Style = "dwp
     Raises:
         BadRequest: The request is wrong; answer 400 with its message.
         NoPersonError: Nobody in the picture; also a 400.
-        ValueError: A person index past the end; also a 400.
+        ValueError: A person index past the end, in `person` or an edit; also a 400.
     """
     data = body.get("image_base64")
     if not isinstance(data, str) or not data:
         raise BadRequest("image_base64 is required")
     image = decode_image(data)
+    edits = parse_edits(body.get("edits"), image.width)
     width = int(_number(body.get("width", image.width), "width"))
     height = int(_number(body.get("height", image.height), "height"))
     if not (64 <= width <= 4096 and 64 <= height <= 4096):
@@ -136,7 +181,7 @@ def handle(detector: Detector, body: dict[str, Any], default_style: Style = "dwp
     want_3d = body.get("want_3d") is True
 
     camera, framing = parse_camera(body.get("camera"))
-    result = pose(detector, image, (width, height), person, camera, style, depth=want_3d, framing=framing)
+    result = pose(detector, image, (width, height), person, camera, style, depth=want_3d, framing=framing, edits=edits)
     people = []
     for found in result.people:
         x0, y0, x1, y1 = found.bbox
@@ -156,6 +201,7 @@ def handle(detector: Detector, body: dict[str, Any], default_style: Style = "dwp
         "height": height,
         "person": result.person,
         "person_subsets": True,
+        "movable": sorted(MOVABLE),
         "camera": {
             "yaw": result.camera.yaw,
             "pitch": result.camera.pitch,
