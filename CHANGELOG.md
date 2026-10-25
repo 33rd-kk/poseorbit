@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 (unreleased)
+
+- **Fixed**: a foot, face or hand point's depth is kept close to the
+  middle depth of its hand, face or foot (`DETAIL_REACH`: 0.1 m for hands,
+  0.12 m for the face, 0.25 m for feet). RTMW3D now and then
+  guessed one such point far in front or behind, as much as half a metre
+  for a fingertip, while its x and y were right. From the front nothing
+  showed, but a turned pose or a moved wrist drew it as a long stray line.
+
 ## 0.3.0 (2026-10-25)
 
 - **Move a joint**: `pose(..., edits=[Edit(person, joint, to)])` turns a

@@ -10,6 +10,11 @@ Depth is relative to each person's hips (the middle of keypoints 11 and 12).
 The HTTP API divides all three by the picture's width, so a client needs
 neither its size nor its aspect.
 
+Depth is guessed from one picture. A foot, face or hand point's depth is
+kept close to the middle depth of its foot, face or hand (0.25 m, 0.12 m
+and 0.1 m, `poseorbit.detect.DETAIL_REACH`), so one stray guess cannot
+draw a long line once the pose is turned.
+
 ## Moving a joint
 
 An edit's `to` is in the same units as the points (pixels in Python, picture

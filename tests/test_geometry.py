@@ -69,6 +69,24 @@ def test_depth_is_relative_to_the_hips_and_scaled_by_the_torso():
     assert depth[0] == pytest.approx(50, rel=1e-3)
 
 
+def test_a_stray_fingertip_is_kept_near_its_hand():
+    keypoints = np.zeros((133, 2))
+    keypoints[[5, 6]] = [[90, 0], [110, 0]]
+    keypoints[[11, 12]] = [[90, 100], [110, 100]]  # 200 px per metre
+    scores = np.ones(133)
+    metre = 144 / 2.1744869
+    bins = np.full(133, 144.0)
+    bins[10] = 144 + 0.4 * metre  # the right wrist 0.4 m behind
+    bins[112:133] = bins[10] + 0.05 * metre  # its hand just behind it
+    bins[132] = 144 - 1.2 * metre  # but the little fingertip 1.2 m in front of the hips
+    bins[23] = 144 + 0.1 * metre  # a face point 0.1 m behind the nose: kept
+    depth = depth_in_pixels(bins, keypoints, scores)
+    assert depth[131] == pytest.approx(0.45 * 200, rel=1e-3)
+    assert depth[132] == pytest.approx((0.45 - 0.1) * 200, rel=1e-3)  # held at the hand's reach
+    assert depth[23] == pytest.approx(0.1 * 200, rel=1e-3)
+    assert depth[10] == pytest.approx(0.4 * 200, rel=1e-3)  # body joints are not held
+
+
 def _person(x: float) -> Person:
     keypoints = np.tile([x, 0.0], (133, 1))
     return Person(keypoints, np.ones(133))

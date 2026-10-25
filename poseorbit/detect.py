@@ -80,6 +80,21 @@ Z_RANGE = 2.1744869
 # pose looks, so being off by a little shows as a slightly flatter or deeper
 # figure, not a broken one.
 TORSO_METRES = 0.5
+# How far (metres) a foot, face or hand point's depth may stray from the
+# middle (median) depth of its group, the joint it belongs to included.
+# RTMW3D now and then puts one such point far in front or behind (a
+# fingertip half a metre off) while its x and y are right: unseen from the
+# front, it shows as a long stray line once the pose is turned or a joint
+# moved. A median is not pulled by that one point, and these leave room for
+# a real hand (about 0.1 m from its middle to a fingertip), head or foot, whichever
+# way it points: (points, the joint they belong to, metres).
+DETAIL_REACH = (
+    (range(17, 20), 15, 0.25),  # left toes and heel: the left ankle
+    (range(20, 23), 16, 0.25),
+    (range(23, 91), 0, 0.12),  # the face: the nose
+    (range(91, 112), 9, 0.1),  # the left hand: the left wrist
+    (range(112, 133), 10, 0.1),
+)
 
 
 class NoPersonError(ValueError):
@@ -193,8 +208,14 @@ def depth_in_pixels(depth_bins: np.ndarray, keypoints: np.ndarray, scores: np.nd
     from the torso: its length on screen is the true length foreshortened by
     how far the shoulders lean toward or away from the viewer, which the depth
     itself says, so a figure bending over is not mistaken for a small one.
+
+    A foot, face or hand point is kept within `DETAIL_REACH` of its group's
+    middle depth: a stray guess there would show as a long line once turned.
     """
     metres = (depth_bins / (DEPTH_BINS / 2) - 1) * Z_RANGE
+    for points, joint, reach in DETAIL_REACH:
+        middle = float(np.median(metres[[joint, *points]]))
+        metres[points] = np.clip(metres[points], middle - reach, middle + reach)
     shoulders = keypoints[[5, 6]].mean(axis=0)
     hips = keypoints[[11, 12]].mean(axis=0)
     seen = scores[[5, 6, 11, 12]].min() >= KEYPOINT_THRESHOLD
