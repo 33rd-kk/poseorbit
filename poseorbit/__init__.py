@@ -22,7 +22,7 @@ from .detect import KEYPOINT_THRESHOLD, Detector, NoPersonError, Person, most_co
 from .draw import STYLES, Style, letterbox, render
 from .geometry import MAX_PITCH, MAX_YAW, MAX_ZOOM, MIN_ZOOM, Camera, Framing, fit, frame, scene_centre, view
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 # Person index meaning "everyone detected", for a group pose.
 ALL_PEOPLE = -1
