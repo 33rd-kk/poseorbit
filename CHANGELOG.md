@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.1 (unreleased)
+## 0.3.1 (2026-10-25)
 
 - **Fixed**: a foot, face or hand point's depth is kept close to the
   middle depth of its hand, face or foot (`DETAIL_REACH`: 0.1 m for hands,
