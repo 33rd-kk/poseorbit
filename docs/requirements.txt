@@ -5,4 +5,4 @@ mkdocs-material==9.7.7
 mkdocstrings==1.0.7
 mkdocstrings-python==2.0.9
 pymdown-extensions==12.3
-ruff==0.17.1  # mkdocstrings formats long signatures with it
+ruff==0.17.2  # mkdocstrings formats long signatures with it
