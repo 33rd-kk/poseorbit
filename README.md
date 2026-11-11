@@ -1,6 +1,6 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/banner-dark.png">
-  <img alt="poseorbit: a picture, the skeleton turned 30 degrees and the picture generated from it, then a zoomed skeleton and the close-up generated from it" src="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/banner-light.png">
+  <img alt="poseorbit: a whole-body skeleton turned in 3D, inside the orbit the camera moves on: yaw around the figure, pitch over it" src="https://raw.githubusercontent.com/33rd-kk/poseorbit/main/docs/assets/banner-light.png">
 </picture>
 
 # poseorbit

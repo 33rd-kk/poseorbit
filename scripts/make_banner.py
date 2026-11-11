@@ -1,46 +1,44 @@
-"""Draws the README banner (docs/assets/banner-{light,dark}.png): the name on
-the left, and on the right what poseorbit is for, left to right: a picture,
-the skeleton poseorbit drew from it turned 30 degrees and the picture a model
-made from that skeleton, then the same for a close-up.
+"""Draws the README banner (docs/assets/banner-{light,dark}.png): the name and
+what poseorbit does on the left, and on the right one skeleton, turned by
+poseorbit itself, inside the orbit its camera moves on (yaw around the
+figure, pitch over it).
 
-The pictures are in docs/assets/examples (see the README's Examples for how
-they were made). Deterministic: re-running only changes the files when this
-script or those pictures change.
+The pose is docs/assets/banner-pose.json: one whole-body pose (133 points,
+x, y and depth in the pixels of a `size` picture, and their scores), detected
+once with `Detector().detect(picture, depth=True)` and kept as numbers, so
+the banner needs no picture, no model and no download. Deterministic:
+re-running only changes the files when this script, the pose or poseorbit's
+drawing change.
 
     python scripts/make_banner.py
 """
 
 from __future__ import annotations
 
+import json
+import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+import numpy as np
+from PIL import Image, ImageColor, ImageDraw, ImageFilter, ImageFont
+
+from poseorbit import KEYPOINT_THRESHOLD, Camera, fit, render, scene_centre, view
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "docs" / "assets"
-EXAMPLES = ASSETS / "examples"
 W, H, SCALE = 1280, 320, 2
 
 THEMES = {
-    "light": {"bg": "#fafafa", "fg": "#171717", "muted": "#737373", "border": "#e5e5e5", "accent": "#7c6cf0"},
-    "dark": {"bg": "#0a0a0a", "fg": "#fafafa", "muted": "#a3a3a3", "border": "#262626", "accent": "#8b7cf6"},
+    "light": {"bg": "#fafafa", "fg": "#171717", "white": "#525252", "muted": "#737373", "ring": "#c9c3f5", "accent": "#7c6cf0"},
+    "dark": {"bg": "#0a0a0a", "fg": "#fafafa", "white": "#ffffff", "muted": "#a3a3a3", "ring": "#3d3570", "accent": "#8b7cf6"},
 }
 
-TILE_W, TILE_H = 100, 146  # the 832x1216 outputs' shape
-ARROW = 30  # the gap between tiles that holds an arrow
-SPLIT = 34  # the gap between the turn and the close-up
-TOP = 88
-
-# (picture, label under it, gap before it: None, "arrow" or "split")
-TILES = [
-    ("reference.jpg", "picture", None),
-    ("turn-skeleton.png", "yaw -30", "arrow"),
-    ("turn-result.jpg", "generated", "arrow"),
-    ("closeup-skeleton.png", "zoom x5", "split"),
-    ("closeup-result.jpg", "generated", "arrow"),
-]
-# Headings over groups of tiles: (first tile, last tile, text).
-GROUPS = [(1, 2, "turn"), (3, 4, "close-up")]
+CAMERA = Camera(yaw=-30, pitch=12)
+FIGURE = (240, 296)  # the box the turned skeleton is fitted into
+LEFT_TOP = (830, 8)  # where that box goes
+# The orbit is centred on the hips, wherever the pose puts them in the box.
+RING = (215, 40)  # the orbit's half width and half height
+PITCH_RISE = 105  # how high the pitch arc climbs over the orbit
 
 
 def font(size: int) -> ImageFont.FreeTypeFont:
@@ -49,56 +47,91 @@ def font(size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default(size=size * SCALE)
 
 
-def arrow(draw: ImageDraw.ImageDraw, x0: float, x1: float, y: float, colour: str) -> None:
-    s = SCALE
-    draw.line([x0 * s, y * s, (x1 - 3) * s, y * s], fill=colour, width=2 * s)
-    draw.polygon([((x1 - 8) * s, (y - 5) * s), (x1 * s, y * s), ((x1 - 8) * s, (y + 5) * s)], fill=colour)
+def skeleton() -> tuple[Image.Image, tuple[float, float]]:
+    """The turned skeleton (its black background made transparent) and the
+    middle of the orbit: under the box's middle, at the hips' height."""
+    data = json.loads((ASSETS / "banner-pose.json").read_text())
+    points = np.array(data["points"])[None]
+    scores = np.array(data["scores"])[None]
+    flat = view(points, scene_centre(points), CAMERA)
+    # Fit the figure itself, not the picture it came from, into the box.
+    shown = flat[0][scores[0] >= KEYPOINT_THRESHOLD]
+    low, high = shown.min(axis=0), shown.max(axis=0)
+    size = (FIGURE[0] * SCALE, FIGURE[1] * SCALE)
+    keypoints = fit(flat - low, tuple(high - low), size)
+    # rtmlib draws 2-pixel lines, thin at this scale: thicken them a little.
+    drawn = render(keypoints, scores, size, "dwpose").filter(ImageFilter.MaxFilter(3))
+    alpha = Image.fromarray(np.asarray(drawn).max(axis=2)).point(lambda v: min(255, v * 4))
+    figure = drawn.convert("RGBA")
+    figure.putalpha(alpha)
+    hips = keypoints[0, [11, 12]].mean(axis=0) / SCALE
+    # The figure is centred in its box; so is the orbit under it.
+    return figure, (LEFT_TOP[0] + FIGURE[0] / 2, LEFT_TOP[1] + float(hips[1]))
 
 
-def banner(theme: dict) -> Image.Image:
+def on_ring(centre: tuple[float, float], angle: float) -> tuple[float, float]:
+    """A point of the orbit ring in scaled pixels; angle 0 is the right end,
+    pi/2 the near side (lower on screen)."""
+    return (
+        (centre[0] + RING[0] * math.cos(angle)) * SCALE,
+        (centre[1] + RING[1] * math.sin(angle)) * SCALE,
+    )
+
+
+def arrow_head(draw: ImageDraw.ImageDraw, tip: tuple[float, float], towards: tuple[float, float], colour: str) -> None:
+    """A filled arrow head at `tip` (scaled pixels), pointing along `towards`."""
+    length = math.hypot(*towards)
+    ux, uy = towards[0] / length, towards[1] / length
+    back, half = 12 * SCALE, 6 * SCALE
+    bx, by = tip[0] - ux * back, tip[1] - uy * back
+    draw.polygon([tip, (bx - uy * half, by + ux * half), (bx + uy * half, by - ux * half)], fill=colour)
+
+
+def banner(theme: dict, figure: Image.Image, centre: tuple[float, float]) -> Image.Image:
     s = SCALE
-    image = Image.new("RGB", (W * s, H * s), theme["bg"])
+    image = Image.new("RGBA", (W * s, H * s), theme["bg"])
     draw = ImageDraw.Draw(image)
 
     draw.text((56 * s, 104 * s), "poseorbit", font=font(60), fill=theme["fg"])
     draw.text((58 * s, 178 * s), "Pick a person, turn the pose in 3D, frame it,", font=font(18), fill=theme["muted"])
     draw.text((58 * s, 203 * s), "and draw the skeleton your image model follows.", font=font(18), fill=theme["muted"])
 
-    gaps = {None: 0, "arrow": ARROW, "split": SPLIT}
-    width = sum(TILE_W + gaps[gap] for _, _, gap in TILES)
-    x = W - 48 - width
-    lefts = []
-    for name, label, gap in TILES:
-        if gap == "arrow":
-            arrow(draw, x + 6, x + ARROW - 6, TOP + TILE_H / 2, theme["accent"])
-        elif gap == "split":
-            middle = x + SPLIT / 2
-            draw.line([middle * s, (TOP + 16) * s, middle * s, (TOP + TILE_H - 16) * s], fill=theme["border"], width=s)
-        x += gaps[gap]
-        lefts.append(x)
-        tile = Image.open(EXAMPLES / name).convert("RGB").resize((TILE_W * s, TILE_H * s), Image.Resampling.LANCZOS)
-        mask = Image.new("L", tile.size, 0)
-        ImageDraw.Draw(mask).rounded_rectangle([0, 0, tile.width - 1, tile.height - 1], radius=8 * s, fill=255)
-        image.paste(tile, (x * s, TOP * s), mask)
-        draw.rounded_rectangle(
-            [x * s, TOP * s, (x + TILE_W) * s - 1, (TOP + TILE_H) * s - 1], radius=8 * s, outline=theme["border"], width=s
-        )
-        text = draw.textlength(label, font=font(12))
-        draw.text((x * s + (TILE_W * s - text) / 2, (TOP + TILE_H + 10) * s), label, font=font(12), fill=theme["muted"])
-        x += TILE_W
+    # The far half of the orbit, behind the figure.
+    far = [on_ring(centre, a) for a in np.linspace(math.pi, 2 * math.pi, 120)]
+    draw.line(far, fill=theme["ring"], width=2 * s, joint="curve")
 
-    for first, last, heading in GROUPS:
-        left, right = lefts[first], lefts[last] + TILE_W
-        text = draw.textlength(heading, font=font(13))
-        draw.text(((left + right) / 2 * s - text / 2, (TOP - 26) * s), heading, font=font(13), fill=theme["fg"])
-        draw.line([left * s, (TOP - 8) * s, right * s, (TOP - 8) * s], fill=theme["border"], width=s)
-    return image
+    # rtmlib draws the face in white, lost on a light background: tint it.
+    pixels = np.array(figure)
+    white = (pixels[..., :3] > 200).all(axis=2)
+    pixels[white, :3] = np.array(ImageColor.getrgb(theme["white"]), np.uint8)
+    image.alpha_composite(Image.fromarray(pixels), (LEFT_TOP[0] * s, LEFT_TOP[1] * s))
+    draw = ImageDraw.Draw(image)
+
+    # The near half, in front of the figure: the camera swings along it (yaw).
+    near = [on_ring(centre, a) for a in np.linspace(0, math.pi, 120)]
+    draw.line(near, fill=theme["accent"], width=2 * s, joint="curve")
+    a = math.radians(125)
+    arrow_head(draw, on_ring(centre, a), (-RING[0] * math.sin(a), RING[1] * math.cos(a)), theme["accent"])
+    label = on_ring(centre, math.radians(140))
+    draw.text((label[0] - 30 * s, label[1] + 6 * s), "yaw", font=font(14), fill=theme["accent"])
+
+    # The pitch arc: from the right end of the orbit, up over the figure.
+    start = on_ring(centre, 0)
+    arc = [
+        (start[0] - (1 - math.cos(t)) * 70 * s, start[1] - math.sin(t) * PITCH_RISE * s)
+        for t in np.linspace(math.radians(6), math.radians(70), 60)
+    ]
+    draw.line(arc, fill=theme["accent"], width=2 * s, joint="curve")
+    arrow_head(draw, arc[-1], (arc[-1][0] - arc[-4][0], arc[-1][1] - arc[-4][1]), theme["accent"])
+    draw.text((start[0] + 12 * s, start[1] - 70 * s), "pitch", font=font(14), fill=theme["accent"])
+    return image.convert("RGB")
 
 
 def main() -> None:
+    figure, centre = skeleton()
     for name, theme in THEMES.items():
         path = ASSETS / f"banner-{name}.png"
-        banner(theme).save(path, optimize=True)
+        banner(theme, figure, centre).save(path, optimize=True)
         print(f"wrote {path}")
 
 
