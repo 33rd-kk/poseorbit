@@ -51,8 +51,13 @@ else. Note that Anima and Anima-Control-Pose are under CircleStone Labs'
 non-commercial licence (pictures made with them are not restricted);
 poseorbit itself does not use or include them.
 
-**Documentation**: https://33rd-kk.github.io/poseorbit/ (guide, Python API,
-HTTP API, command line).
+**Documentation**: https://33rd-kk.github.io/poseorbit/, with a guide that
+takes one task per page ([getting started](https://33rd-kk.github.io/poseorbit/guide/getting-started/),
+[choose people](https://33rd-kk.github.io/poseorbit/guide/people/), [turn and frame](https://33rd-kk.github.io/poseorbit/guide/turn-and-frame/),
+[move joints](https://33rd-kk.github.io/poseorbit/guide/move-joints/), [use with an image model](https://33rd-kk.github.io/poseorbit/guide/with-a-model/),
+[from another program](https://33rd-kk.github.io/poseorbit/guide/from-another-program/),
+[limits and tips](https://33rd-kk.github.io/poseorbit/guide/limits/)) and the Python API, HTTP API and command line
+reference.
 
 ## How it works
 
@@ -157,6 +162,8 @@ Each comes from a fixed commit and is checked against its SHA-256 before it
 is used; nothing is left behind in Hugging Face's own cache.
 
 ## Use
+
+Each of these is a page of the [guide](https://33rd-kk.github.io/poseorbit/guide/getting-started/), with pictures.
 
 ### From Python
 
