@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.png">
-  <img alt="A picture, the skeleton turned 30 degrees and the picture generated from it, then a zoomed skeleton and the close-up generated from it" src="assets/banner-light.png">
+  <img alt="A whole-body skeleton turned in 3D, with the camera that drew it on a sphere around the figure: dots on the orbit where it can stand, and the arc it climbs to look down" src="assets/banner-light.png">
 </picture>
 
 **Take the pose from a picture, pick whose, look at it from another angle or
