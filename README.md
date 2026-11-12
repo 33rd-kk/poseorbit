@@ -326,8 +326,9 @@ python scripts/make_guide_figures.py   # redraws docs/assets/guide/*.png
 pip install -r docs/requirements.txt && zensical serve   # the docs site, locally
 ```
 
-Zensical 0.1.1 builds no pages on Windows when `docs/` holds pictures; build
-or preview the docs under WSL or in Docker there.
+If a docs build ends without writing pages and still exits 0, check whether
+security software stopped `zensical.exe`; building under WSL or in Docker
+avoids it.
 
 ## Security
 
