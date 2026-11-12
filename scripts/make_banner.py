@@ -1,7 +1,8 @@
 """Draws the README banner (docs/assets/banner-{light,dark}.png): the name and
 what poseorbit does on the left, and on the right one skeleton, turned by
-poseorbit itself, inside the orbit its camera moves on (yaw around the
-figure, pitch over it).
+poseorbit itself, inside the sphere its camera moves on: dots on the orbit
+where it can stand (yaw), the meridian it climbs to the 45-degree limit
+(pitch), and the camera that drew the skeleton, looking at the hips.
 
 The pose is docs/assets/banner-pose.json: one whole-body pose (133 points,
 x, y and depth in the pixels of a `size` picture, and their scores), detected
@@ -17,29 +18,43 @@ from __future__ import annotations
 
 import json
 import math
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageColor, ImageDraw, ImageFilter, ImageFont
 
-from poseorbit import KEYPOINT_THRESHOLD, Camera, fit, render, scene_centre, view
+from poseorbit import (
+    KEYPOINT_THRESHOLD,
+    MAX_PITCH,
+    Camera,
+    fit,
+    render,
+    scene_centre,
+    view,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "docs" / "assets"
 W, H, SCALE = 1280, 320, 2
 
+# "ring" is the orbit and the camera's other places, "accent" the camera in
+# use and where it can go. Both stay at least 3:1 against "bg" (WCAG 1.4.11
+# for graphics), the accent clearly above the ring.
 THEMES = {
-    "light": {"bg": "#fafafa", "fg": "#171717", "white": "#525252", "muted": "#737373", "ring": "#c9c3f5", "accent": "#7c6cf0"},
-    "dark": {"bg": "#0a0a0a", "fg": "#fafafa", "white": "#ffffff", "muted": "#a3a3a3", "ring": "#3d3570", "accent": "#8b7cf6"},
+    "light": {"bg": "#fafafa", "fg": "#171717", "white": "#525252", "muted": "#737373", "ring": "#8a7fdc", "accent": "#5b4ad6"},
+    "dark": {"bg": "#0a0a0a", "fg": "#fafafa", "white": "#ffffff", "muted": "#a3a3a3", "ring": "#6459b4", "accent": "#b4abfa"},
 }
 
 CAMERA = Camera(yaw=-30, pitch=12)
 FIGURE = (240, 296)  # the box the turned skeleton is fitted into
 LEFT_TOP = (830, 8)  # where that box goes
-# The orbit is centred on the hips, wherever the pose puts them in the box.
-RING = (215, 40)  # the orbit's half width and half height
-PITCH_RISE = 105  # how high the pitch arc climbs over the orbit
-
+# The camera's sphere around the hips, as drawn: the orbit's half width and
+# half height, and how tall the sphere looks above it (not to scale: the real
+# sphere would not fit the banner).
+RING = (215, 40)
+RISE = 120
+YAW_STEP = 30  # a dot on the orbit every this many degrees of yaw
 
 def font(size: int) -> ImageFont.FreeTypeFont:
     # Pillow's bundled font, so the script needs no font files (it has no
@@ -69,12 +84,14 @@ def skeleton() -> tuple[Image.Image, tuple[float, float]]:
     return figure, (LEFT_TOP[0] + FIGURE[0] / 2, LEFT_TOP[1] + float(hips[1]))
 
 
-def on_ring(centre: tuple[float, float], angle: float) -> tuple[float, float]:
-    """A point of the orbit ring in scaled pixels; angle 0 is the right end,
-    pi/2 the near side (lower on screen)."""
+def on_sphere(centre: tuple[float, float], yaw: float, pitch: float = 0.0) -> tuple[float, float]:
+    """Where the camera at (`yaw`, `pitch`) is drawn, in scaled pixels. Yaw 0
+    is the near side of the orbit (lower on screen), +yaw to the viewer's
+    right; pitch lifts it towards the top of the sphere."""
+    a, e = math.pi / 2 - math.radians(yaw), math.radians(pitch)
     return (
-        (centre[0] + RING[0] * math.cos(angle)) * SCALE,
-        (centre[1] + RING[1] * math.sin(angle)) * SCALE,
+        (centre[0] + RING[0] * math.cos(e) * math.cos(a)) * SCALE,
+        (centre[1] + RING[1] * math.cos(e) * math.sin(a) - RISE * math.sin(e)) * SCALE,
     )
 
 
@@ -87,6 +104,34 @@ def arrow_head(draw: ImageDraw.ImageDraw, tip: tuple[float, float], towards: tup
     draw.polygon([tip, (bx - uy * half, by + ux * half), (bx + uy * half, by - ux * half)], fill=colour)
 
 
+def dot(draw: ImageDraw.ImageDraw, at: tuple[float, float], radius: float, theme: dict, filled: bool) -> None:
+    r = radius * SCALE
+    box = [at[0] - r, at[1] - r, at[0] + r, at[1] + r]
+    if filled:
+        draw.ellipse(box, fill=theme["accent"])
+    else:
+        draw.ellipse(box, outline=theme["ring"], width=2 * SCALE, fill=theme["bg"])
+
+
+def dashed(draw: ImageDraw.ImageDraw, points: list[tuple[float, float]], colour: str, dash: float = 6, gap: float = 5) -> None:
+    """A dashed line along `points` (scaled pixels)."""
+    pattern = [dash * SCALE, gap * SCALE]
+    phase, left, segment = 0, pattern[0], [points[0]]
+    for p, q in pairwise(points):
+        length, done = math.dist(p, q), 0.0
+        while length - done > left:
+            done += left
+            point = (p[0] + (q[0] - p[0]) * done / length, p[1] + (q[1] - p[1]) * done / length)
+            if phase == 0:
+                draw.line(segment + [point], fill=colour, width=2 * SCALE)
+            phase, left, segment = 1 - phase, pattern[1 - phase], [point]
+        left -= length - done
+        if phase == 0:
+            segment.append(q)
+    if phase == 0 and len(segment) > 1:
+        draw.line(segment, fill=colour, width=2 * SCALE)
+
+
 def banner(theme: dict, figure: Image.Image, centre: tuple[float, float]) -> Image.Image:
     s = SCALE
     image = Image.new("RGBA", (W * s, H * s), theme["bg"])
@@ -96,8 +141,8 @@ def banner(theme: dict, figure: Image.Image, centre: tuple[float, float]) -> Ima
     draw.text((58 * s, 178 * s), "Pick a person, turn the pose in 3D, frame it,", font=font(18), fill=theme["muted"])
     draw.text((58 * s, 203 * s), "and draw the skeleton your image model follows.", font=font(18), fill=theme["muted"])
 
-    # The far half of the orbit, behind the figure.
-    far = [on_ring(centre, a) for a in np.linspace(math.pi, 2 * math.pi, 120)]
+    # The far half of the orbit, behind the figure (yaw beyond +-90).
+    far = [on_sphere(centre, yaw) for yaw in np.linspace(90, 270, 120)]
     draw.line(far, fill=theme["ring"], width=2 * s, joint="curve")
 
     # rtmlib draws the face in white, lost on a light background: tint it.
@@ -107,25 +152,28 @@ def banner(theme: dict, figure: Image.Image, centre: tuple[float, float]) -> Ima
     image.alpha_composite(Image.fromarray(pixels), (LEFT_TOP[0] * s, LEFT_TOP[1] * s))
     draw = ImageDraw.Draw(image)
 
-    # The near half, in front of the figure: the camera swings along it (yaw).
-    near = [on_ring(centre, a) for a in np.linspace(0, math.pi, 120)]
-    draw.line(near, fill=theme["accent"], width=2 * s, joint="curve")
-    a = math.radians(125)
-    arrow_head(draw, on_ring(centre, a), (-RING[0] * math.sin(a), RING[1] * math.cos(a)), theme["accent"])
-    label = on_ring(centre, math.radians(140))
-    draw.text((label[0] - 30 * s, label[1] + 6 * s), "yaw", font=font(14), fill=theme["accent"])
+    # The near half, in front of the figure, with the places the camera can
+    # stand as it swings around (yaw), up to the side views.
+    near = [on_sphere(centre, yaw) for yaw in np.linspace(-90, 90, 120)]
+    draw.line(near, fill=theme["ring"], width=2 * s, joint="curve")
+    for yaw in range(-90, 91, YAW_STEP):
+        if yaw != round(CAMERA.yaw):
+            dot(draw, on_sphere(centre, yaw), 5, theme, False)
 
-    # The pitch arc: from the right end of the orbit, up over the figure.
-    start = on_ring(centre, 0)
-    arc = [
-        (start[0] - (1 - math.cos(t)) * 70 * s, start[1] - math.sin(t) * PITCH_RISE * s)
-        for t in np.linspace(math.radians(6), math.radians(70), 60)
-    ]
-    draw.line(arc, fill=theme["accent"], width=2 * s, joint="curve")
-    arrow_head(draw, arc[-1], (arc[-1][0] - arc[-4][0], arc[-1][1] - arc[-4][1]), theme["accent"])
-    draw.text((start[0] + 12 * s, start[1] - 70 * s), "pitch", font=font(14), fill=theme["accent"])
+    # The meridian through the camera: it climbs along it (pitch), solid to
+    # the 45-degree limit, dashed beyond.
+    climb = [on_sphere(centre, CAMERA.yaw, e) for e in np.linspace(0, MAX_PITCH, 40)]
+    dashed(draw, [on_sphere(centre, CAMERA.yaw, e) for e in np.linspace(MAX_PITCH, 90, 30)], theme["ring"])
+    draw.line(climb, fill=theme["accent"], width=2 * s, joint="curve")
+    for e in (30,):  # 15 would sit under the camera
+        dot(draw, on_sphere(centre, CAMERA.yaw, e), 4, theme, False)
+    arrow_head(draw, climb[-1], (climb[-1][0] - climb[-4][0], climb[-1][1] - climb[-4][1]), theme["accent"])
+
+    # The camera in use, and its line of sight to the hips.
+    camera = on_sphere(centre, CAMERA.yaw, CAMERA.pitch)
+    draw.line([camera, (centre[0] * s, centre[1] * s)], fill=theme["accent"], width=2 * s)
+    dot(draw, camera, 9, theme, True)
     return image.convert("RGB")
-
 
 def main() -> None:
     figure, centre = skeleton()
