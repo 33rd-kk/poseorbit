@@ -28,7 +28,13 @@ theme:
 nav:
   - Home: index.md
   - Guide:
-      - Usage: guide/usage.md
+      - Getting started: guide/getting-started.md
+      - Choose people: guide/people.md
+      - Turn and frame: guide/turn-and-frame.md
+      - Move joints: guide/move-joints.md
+      - Use with an image model: guide/with-a-model.md
+      - From another program: guide/from-another-program.md
+      - Limits and tips: guide/limits.md
       - Skeleton styles: guide/styles.md
       - Coordinates: guide/coordinates.md
   - Reference:
@@ -74,3 +80,5 @@ markdown_extensions:
 
 exclude_docs: |
   requirements.txt
+not_in_nav: |
+  guide/usage.md

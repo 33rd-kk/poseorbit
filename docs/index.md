@@ -59,7 +59,9 @@ and drawn on black.
 
 ## Where next
 
-- [Usage](guide/usage.md): each step with code, and using the skeleton with diffusers.
-- [Skeleton styles](guide/styles.md): which drawing for which model.
-- [Coordinates](guide/coordinates.md): the exact mapping, for a viewer that must match.
+- [Getting started](guide/getting-started.md): install, the first skeleton, what the first run downloads.
+- [Choose people](guide/people.md), [Turn and frame](guide/turn-and-frame.md), [Move joints](guide/move-joints.md): each step, with pictures.
+- [Use with an image model](guide/with-a-model.md): which style, and the skeleton in diffusers.
+- [From another program](guide/from-another-program.md): the command line, the HTTP server, embedding the handler.
+- [Limits and tips](guide/limits.md), [Skeleton styles](guide/styles.md), [Coordinates](guide/coordinates.md).
 - Reference: the [Python API](reference/python.md), the [HTTP API](reference/http.md) and the [command line](reference/cli.md).

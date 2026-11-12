@@ -47,7 +47,7 @@ A generation server can answer the same requests by calling
 | `camera.framing.zoom` | no | 0.5–6, clamped; 1 by default |
 | `camera.framing.x`, `.y` | no | The canvas point to centre, fractions 0–1; 0.5 by default |
 | `style` | no | `"dwpose"` (default) or `"openpose"` |
-| `edits` | no | Up to 256 joints to move, in order; see [Move a joint](../guide/usage.md#4-move-a-joint). `person` is an index into `people`, `joint` one of `movable`, `to` the point it should point at, `[x, y, z]` in units of the picture's width like `points_3d` (each within ±16) |
+| `edits` | no | Up to 256 joints to move, in order; see [Move joints](../guide/move-joints.md). `person` is an index into `people`, `joint` one of `movable`, `to` the point it should point at, `[x, y, z]` in units of the picture's width like `points_3d` (each within ±16) |
 
 ### Answer
 
