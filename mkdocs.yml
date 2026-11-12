@@ -1,9 +1,11 @@
+# The documentation site, built by Zensical (see docs/requirements.txt).
 site_name: poseorbit
 site_description: Find the people in a picture, turn their pose in 3D, frame it, and draw the skeleton your image model follows.
 site_url: https://33rd-kk.github.io/poseorbit/
 repo_url: https://github.com/33rd-kk/poseorbit
 repo_name: 33rd-kk/poseorbit
 edit_uri: edit/main/docs/
+site_dir: site
 copyright: poseorbit is Apache-2.0. Model files keep their own licences.
 
 theme:

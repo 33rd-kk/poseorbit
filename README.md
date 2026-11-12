@@ -321,7 +321,12 @@ backends, uses poseorbit for its pose slot and its 3D pose view.
 pip install -e ".[test,server]"
 pytest                             # geometry and API checks; no model download
 python scripts/make_banner.py      # redraws docs/assets/banner-*.png
+python scripts/make_guide_figures.py   # redraws docs/assets/guide/*.png
+pip install -r docs/requirements.txt && zensical serve   # the docs site, locally
 ```
+
+Zensical 0.1.1 builds no pages on Windows when `docs/` holds pictures; build
+or preview the docs under WSL or in Docker there.
 
 ## Security
 

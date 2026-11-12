@@ -29,8 +29,9 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -r docs/requirements.txt
-      # --strict: a broken link or reference fails the build.
-      - run: mkdocs build --strict --site-dir site
+      # --strict: a broken link or reference fails the build. Zensical writes
+      # to site/ (site_dir in mkdocs.yml).
+      - run: zensical build --strict
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site

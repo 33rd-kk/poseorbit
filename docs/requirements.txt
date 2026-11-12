@@ -1,8 +1,9 @@
-# The documentation site (mkdocs.yml). Pinned so a build is reproducible;
-# Dependabot keeps them current.
-mkdocs==1.6.1
-mkdocs-material==9.8.0
+# The documentation site, built with Zensical (the successor of Material for
+# MkDocs, which reaches end of life in May 2027) from mkdocs.yml, which it
+# reads as is. Pinned so a build is reproducible; Dependabot keeps them
+# current.
+zensical==0.1.1
 mkdocstrings==1.0.8
 mkdocstrings-python==2.0.10
-pymdown-extensions==12.3
+pymdown-extensions==13.1
 ruff==0.17.3  # mkdocstrings formats long signatures with it
