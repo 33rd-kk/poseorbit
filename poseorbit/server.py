@@ -9,17 +9,23 @@ Detection runs on the CPU. Bound to 127.0.0.1 unless told otherwise; an
 optional POSEORBIT_TOKEN is checked as a Bearer token.
 """
 
-from __future__ import annotations
-
+# No `from __future__ import annotations` here: FastAPI reads the handlers'
+# annotations at run time, and `Request` is imported inside create_app.
+import hmac
+import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from . import MAX_PITCH, MAX_YAW, MAX_ZOOM, MIN_ZOOM, STYLES, Detector, NoPersonError, __version__
-from .api import BadRequest, handle
+from .api import MAX_PIXELS, BadRequest, handle
 
 if TYPE_CHECKING:  # FastAPI is the optional `server` extra
     from fastapi import FastAPI
+
+# The largest /api/pose body, in bytes: the longest picture api.py takes plus
+# room for the rest. A body is read whole, so it is bounded while it arrives.
+MAX_BODY_BYTES = 40 * 1024 * 1024
 
 
 def create_app(weights_dir: Path | None = None) -> "FastAPI":
@@ -41,18 +47,28 @@ def create_app(weights_dir: Path | None = None) -> "FastAPI":
 
     @app.middleware("http")
     async def check_token(request: Request, call_next):
-        if token and request.url.path != "/api/health" and request.headers.get("authorization") != f"Bearer {token}":
+        given = request.headers.get("authorization", "").encode()
+        if token and request.url.path != "/api/health" and not hmac.compare_digest(given, f"Bearer {token}".encode()):
             return JSONResponse({"detail": "Unauthorized"}, status_code=401)
         return await call_next(request)
 
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "version": __version__, "styles": list(STYLES), "limits": {"yaw": MAX_YAW, "pitch": MAX_PITCH, "zoom": [MIN_ZOOM, MAX_ZOOM]}}
+        return {"status": "ok", "version": __version__, "styles": list(STYLES), "limits": {"yaw": MAX_YAW, "pitch": MAX_PITCH, "zoom": [MIN_ZOOM, MAX_ZOOM], "max_pixels": MAX_PIXELS}}
 
     @app.post("/api/pose")
     async def pose(request: Request):
+        length = request.headers.get("content-length", "")
+        if length and (not length.isdigit() or int(length) > MAX_BODY_BYTES):
+            raise HTTPException(413, "Request body too large")
+        chunks, size = [], 0
+        async for chunk in request.stream():  # a chunked body has no length to check up front
+            size += len(chunk)
+            if size > MAX_BODY_BYTES:
+                raise HTTPException(413, "Request body too large")
+            chunks.append(chunk)
         try:
-            body = await request.json()
+            body = json.loads(b"".join(chunks))
         except Exception as error:  # noqa: BLE001
             raise HTTPException(400, "Invalid JSON body") from error
         if not isinstance(body, dict):

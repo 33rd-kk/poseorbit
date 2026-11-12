@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.2 (2026-11-12)
+
+- **Fixed**: `poseorbit serve` answered every `/api/pose` request with a
+  422, because FastAPI could not read the handler's types. It answers again.
+- **Security**: `/api/pose` bodies over 40 MB get a 413, read as they
+  arrive. `api.handle`, which embedding servers use too, refuses an
+  `image_base64` over 32M characters and a picture over 8192 x 8192 pixels,
+  read from its header before it is decoded (`MAX_IMAGE_CHARS`,
+  `MAX_PIXELS`). `/api/health` states `max_pixels`, and the token is
+  compared in constant time.
+
 ## 0.3.1 (2026-10-25)
 
 - **Fixed**: a foot, face or hand point's depth is kept close to the

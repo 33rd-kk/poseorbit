@@ -17,7 +17,7 @@ A generation server can answer the same requests by calling
 
 ```json
 { "status": "ok", "version": "0.1.1", "styles": ["dwpose", "openpose"],
-  "limits": { "yaw": 90.0, "pitch": 45.0, "zoom": [0.5, 6.0] } }
+  "limits": { "yaw": 90.0, "pitch": 45.0, "zoom": [0.5, 6.0], "max_pixels": 67108864 } }
 ```
 
 ## `POST /api/pose`

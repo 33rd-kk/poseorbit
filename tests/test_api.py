@@ -2,13 +2,15 @@
 
 import base64
 import io
+import struct
+import zlib
 
 import numpy as np
 import pytest
 from PIL import Image
 
 from poseorbit import MAX_YAW, MAX_ZOOM, MOVABLE, NoPersonError, Person
-from poseorbit.api import BadRequest, handle
+from poseorbit.api import MAX_IMAGE_CHARS, BadRequest, decode_image, handle
 
 
 def _person(x: float) -> Person:
@@ -172,3 +174,31 @@ def test_bad_edits_are_refused(edits):
 def test_an_edit_for_a_person_past_the_end_is_refused():
     with pytest.raises(ValueError):
         handle(StubDetector([_person(200)]), {"image_base64": _picture(), "edits": [{"person": 1, "joint": 9, "to": [0, 0, 0]}]})
+
+
+def _png_claiming(width: int, height: int) -> str:
+    """A 1x1 PNG whose header says it is width x height: tiny, but it would
+    take width * height pixels to decode."""
+    buffer = io.BytesIO()
+    Image.new("RGB", (1, 1)).save(buffer, "PNG")
+    data = bytearray(buffer.getvalue())
+    data[16:24] = struct.pack(">II", width, height)  # IHDR width and height
+    data[29:33] = struct.pack(">I", zlib.crc32(data[12:29]))
+    return base64.b64encode(bytes(data)).decode()
+
+
+@pytest.mark.parametrize("size", [(8193, 8192), (9000, 9000), (60000, 60000)])
+def test_a_picture_past_max_pixels_is_refused_before_decoding(size):
+    with pytest.raises(BadRequest, match="pixels"):
+        decode_image(_png_claiming(*size))
+
+
+def test_a_long_thin_picture_within_max_pixels_is_read():
+    buffer = io.BytesIO()
+    Image.new("RGB", (8192, 1), "white").save(buffer, "PNG")
+    assert decode_image(base64.b64encode(buffer.getvalue()).decode()).size == (8192, 1)
+
+
+def test_a_too_long_image_base64_is_refused():
+    with pytest.raises(BadRequest, match="characters"):
+        handle(StubDetector([_person(200)]), {"image_base64": "A" * (MAX_IMAGE_CHARS + 1)})

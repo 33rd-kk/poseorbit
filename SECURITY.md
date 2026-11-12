@@ -19,7 +19,8 @@ Only the latest release gets fixes.
 - `python -m poseorbit serve` listens on 127.0.0.1 by default and has no
   authentication unless `POSEORBIT_TOKEN` is set. Set a token, and put a
   reverse proxy with its own limits in front, before exposing it to anyone
-  else: it decodes whatever pictures it is sent.
+  else. It takes bodies up to 40 MB and pictures up to 8192 x 8192 pixels
+  (checked before decoding), but does not limit how many requests come in.
 - Model files are downloaded from Hugging Face on first use (see `NOTICE`
   for the repositories). Pass `weights_dir` to keep them somewhere you
   control.

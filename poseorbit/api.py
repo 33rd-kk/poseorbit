@@ -48,6 +48,14 @@ MAX_EDITS = 256
 # How far an edit may point, in picture widths: well past any figure.
 _MAX_REACH = 16
 
+# The longest `image_base64` one request may carry, in characters: a 24 MB
+# picture, far past any photo or render, bounded before anything is decoded.
+MAX_IMAGE_CHARS = 32 * 1024 * 1024
+
+# The most pixels a picture may hold (8192 x 8192), read from its header
+# before it is decoded: a small file can claim a canvas that takes gigabytes.
+MAX_PIXELS = 8192 * 8192
+
 
 class BadRequest(ValueError):
     """The request is wrong; answer 400 with the message."""
@@ -57,14 +65,22 @@ def decode_image(data: str) -> Image.Image:
     """A picture from base64, with or without a `data:` URL prefix.
 
     Raises:
-        BadRequest: It is not a picture.
+        BadRequest: It is not a picture, or it holds more than `MAX_PIXELS`.
     """
     if data.startswith("data:"):
         data = data.split(",", 1)[1]
+    too_large = BadRequest(f"The picture holds more than {MAX_PIXELS} pixels (8192 x 8192).")
     try:
-        image = Image.open(io.BytesIO(base64.b64decode(data)))
-        image.load()
+        image = Image.open(io.BytesIO(base64.b64decode(data)))  # reads the header only
+    except Image.DecompressionBombError as error:  # Pillow's own, far larger bound
+        raise too_large from error
     except Exception as error:  # noqa: BLE001 - any decode failure is the caller's input
+        raise BadRequest("The picture could not be read.") from error
+    if image.width * image.height > MAX_PIXELS:
+        raise too_large
+    try:
+        image.load()
+    except Exception as error:  # noqa: BLE001
         raise BadRequest("The picture could not be read.") from error
     return image
 
@@ -162,6 +178,8 @@ def handle(detector: Detector, body: dict[str, Any], default_style: Style = "dwp
     data = body.get("image_base64")
     if not isinstance(data, str) or not data:
         raise BadRequest("image_base64 is required")
+    if len(data) > MAX_IMAGE_CHARS:
+        raise BadRequest(f"image_base64 must be at most {MAX_IMAGE_CHARS} characters")
     image = decode_image(data)
     edits = parse_edits(body.get("edits"), image.width)
     width = int(_number(body.get("width", image.width), "width"))

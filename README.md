@@ -243,7 +243,8 @@ the picture's width; `movable` in the answer lists the joints it may move.
 `want_3d` adds each person's 133 points as `[x, y, z]` in units of
 the picture's width, for a 3D viewer. Out-of-range angles and zoom are
 clamped; a picture with nobody in it, or a person index past the end, gets a
-400 with a `detail` message. Server and API are 127.0.0.1-only by default.
+400 with a `detail` message. A picture over 8192 x 8192 pixels gets a 400
+too, and a body over 40 MB a 413. Server and API are 127.0.0.1-only by default.
 
 ## Reference
 

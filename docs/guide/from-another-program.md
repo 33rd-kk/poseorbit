@@ -37,9 +37,11 @@ It is meant for one machine:
   `/api/health` needs `Authorization: Bearer <token>`.
 - Pictures are read in memory and not kept; the server writes nothing to
   disk but the model files on first use.
-- The output size (64 to 4096 a side), a list of people (up to 64) and the
-  edits (up to 256) are bounded, and out-of-range angles and zoom are
-  clamped.
+- The body (up to 40 MB), the picture (up to 8192 x 8192 pixels, checked
+  before it is decoded), the output size (64 to 4096 a side), a list of
+  people (up to 64) and the edits (up to 256) are bounded, and out-of-range
+  angles and zoom are clamped. `/api/health` states the pixel bound as
+  `limits.max_pixels`.
 
 ## Inside your own server
 
