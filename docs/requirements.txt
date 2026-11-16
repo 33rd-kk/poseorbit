@@ -4,6 +4,6 @@
 # current.
 zensical==0.1.1
 mkdocstrings==1.0.8
-mkdocstrings-python==2.0.10
+mkdocstrings-python==2.0.11
 pymdown-extensions==13.1
-ruff==0.17.3  # mkdocstrings formats long signatures with it
+ruff==0.17.5  # mkdocstrings formats long signatures with it
